@@ -573,6 +573,13 @@
     document.getElementById('lastUpdated').textContent = fmtTime()
   }
 
+  // Both fire every second and touch unrelated parts of the header, so
+  // they run off a single timer instead of two separate setInterval calls.
+  function everySecondTick() {
+    updateHeaderMeta()
+    updateAdvisoryCountdown()
+  }
+
   // ── SIMULATION TICK ──
   function tick() {
     tickCount++
@@ -723,10 +730,33 @@
 
     document.getElementById('refreshAdvisoryBtn').addEventListener('click', manualRefreshAdvisory)
 
-    setInterval(tick, 3500)              // visual simulation only — free, no API cost
-    setInterval(updateHeaderMeta, 1000)
-    setInterval(updateAdvisoryCountdown, 1000)
+    startSimulationTimers()
+
+    // Pause the simulation while the tab is in the background — no point
+    // re-rendering the stand map or polling Groq for a page nobody is
+    // looking at. Resume (and catch up the header/countdown) when it's
+    // visible again.
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        stopSimulationTimers()
+      } else {
+        everySecondTick()
+        startSimulationTimers()
+      }
+    })
   })
+
+  let simTimer = null
+  let secondTimer = null
+  function startSimulationTimers() {
+    if (simTimer || secondTimer) return // already running
+    simTimer    = setInterval(tick, 3500)          // visual simulation only — free, no API cost
+    secondTimer = setInterval(everySecondTick, 1000)
+  }
+  function stopSimulationTimers() {
+    clearInterval(simTimer); simTimer = null
+    clearInterval(secondTimer); secondTimer = null
+  }
 </script>
 </body>
 </html>
