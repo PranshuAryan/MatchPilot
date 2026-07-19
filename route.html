@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MatchPilot — Match Route</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy:       #0A1628;
+      --navy-mid:   #0F2040;
+      --navy-light: #1A3560;
+      --gold:       #FFD700;
+      --gold-dim:   #C9A800;
+      --blue:       #00A3E0;
+      --blue-dim:   #0077A8;
+      --white:      #FFFFFF;
+      --off-white:  #F0F4FF;
+      --muted:      #8899BB;
+      --border:     rgba(255,255,255,0.08);
+      --card:       rgba(255,255,255,0.04);
+      --card-hover: rgba(255,255,255,0.08);
+      --danger:     #FF4D4D;
+      --success:    #00D68F;
+      --warn:       #FF9F43;
+    }
+    html, body { min-height:100%; font-family:'Inter',sans-serif; font-weight:300; background:var(--navy); color:var(--white); overflow-x:hidden; }
+    body::before {
+      content:''; position:fixed; inset:0; z-index:0;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 0%, rgba(0,163,224,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(255,215,0,0.08) 0%, transparent 60%);
+      pointer-events:none;
+    }
+
+    /* ── SKIP LINK (accessibility) ── */
+    .skip-link {
+      position: absolute; left: -9999px; top: auto;
+      z-index: 1000; background: var(--gold); color: var(--navy);
+      padding: 10px 18px; border-radius: 0 0 8px 0;
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.85rem;
+      text-decoration: none;
+    }
+    .skip-link:focus { left: 0; top: 0; }
+
+    /* ── NAV ── */
+    nav {
+      position:sticky; top:0; z-index:100;
+      background:rgba(10,22,40,0.92); backdrop-filter:blur(16px);
+      border-bottom:1px solid var(--border);
+      padding:0 28px; display:flex; align-items:center; justify-content:space-between; height:60px;
+    }
+    .nav-brand { display:flex; align-items:center; gap:10px; text-decoration:none; }
+    .nav-logo {
+      width:32px; height:32px; border-radius:8px;
+      background:linear-gradient(135deg, var(--gold) 0%, var(--blue) 100%);
+      display:flex; align-items:center; justify-content:center;
+      font-size:1rem; font-weight:800; color:var(--navy); font-family:'Syne',sans-serif;
+    }
+    .nav-name { font-family:'Syne',sans-serif; font-weight:700; font-size:1.1rem; color:var(--white); }
+    .nav-name span { color:var(--gold); }
+    .nav-links { display:flex; align-items:center; gap:6px; }
+    .nav-link { padding:7px 14px; border-radius:8px; font-size:0.8rem; font-weight:500; color:var(--muted); text-decoration:none; transition:all 0.15s; }
+    .nav-link:hover { background:var(--card-hover); color:var(--white); }
+    .nav-link.active { background:rgba(255,215,0,0.12); color:var(--gold); }
+    .nav-badge { background:var(--gold); color:var(--navy); border-radius:100px; padding:4px 10px; font-size:0.68rem; font-weight:700; font-family:'Syne',sans-serif; letter-spacing:0.5px; }
+    @media (max-width:760px) { .nav-links { display:none; } }
+
+    /* ── LAYOUT ── */
+    .page { position:relative; z-index:1; max-width:860px; margin:0 auto; padding:28px 20px 80px; display:flex; flex-direction:column; gap:20px; }
+
+    /* ── HERO ── */
+    .hero { text-align:center; padding:8px 0 0; }
+    .hero h1 { font-family:'Syne',sans-serif; font-size:1.6rem; font-weight:700; }
+    .hero h1 span { color:var(--gold); }
+    .hero p { font-size:0.84rem; color:var(--muted); margin-top:6px; }
+
+    /* ── STEP CARDS ── */
+    .steps-row { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+    .step-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px 16px; text-align:center; }
+    .step-num { font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:800; color:var(--gold); }
+    .step-label { font-size:0.75rem; color:var(--muted); margin-top:4px; line-height:1.4; }
+
+    /* ── PLANNER CARD ── */
+    .planner { background:var(--card); border:1px solid var(--border); border-radius:20px; padding:24px; }
+    .planner-title { font-family:'Syne',sans-serif; font-size:1rem; font-weight:700; margin-bottom:18px; display:flex; align-items:center; gap:8px; }
+
+    /* city selector */
+    .city-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:8px; margin-bottom:20px; }
+    .city-btn {
+      padding:10px 12px; border-radius:12px; border:1px solid var(--border);
+      background:var(--card); cursor:pointer; text-align:left; transition:all 0.15s;
+      font-family:'Inter',sans-serif;
+    }
+    .city-btn:hover { border-color:rgba(0,163,224,0.4); background:rgba(0,163,224,0.06); }
+    .city-btn.selected { border-color:var(--gold); background:rgba(255,215,0,0.08); }
+    .city-flag { font-size:1rem; margin-bottom:4px; }
+    .city-name { font-size:0.8rem; font-weight:600; color:var(--white); }
+    .city-stadium { font-size:0.68rem; color:var(--muted); margin-top:2px; line-height:1.3; }
+
+    /* divider */
+    .planner-divider { height:1px; background:var(--border); margin:18px 0; }
+
+    /* transport options */
+    .section-label { font-size:0.72rem; font-weight:600; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:10px; }
+    .transport-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:8px; margin-bottom:18px; }
+    .transport-btn {
+      padding:10px 8px; border-radius:12px; border:1px solid var(--border);
+      background:var(--card); cursor:pointer; text-align:center; transition:all 0.15s;
+      font-family:'Inter',sans-serif;
+    }
+    .transport-btn:hover { border-color:rgba(0,163,224,0.4); }
+    .transport-btn.selected { border-color:var(--blue); background:rgba(0,163,224,0.1); }
+    .transport-icon { font-size:1.3rem; margin-bottom:4px; }
+    .transport-name { font-size:0.72rem; font-weight:500; color:var(--white); }
+    .transport-note { font-size:0.62rem; color:var(--muted); margin-top:2px; }
+
+    /* origin input */
+    .input-row { display:flex; gap:10px; align-items:flex-end; }
+    .field { flex:1; }
+    .field label { font-size:0.72rem; color:var(--muted); display:block; margin-bottom:6px; }
+    .field input, .field select {
+      width:100%; padding:11px 14px; border-radius:10px;
+      border:1px solid var(--border); background:var(--navy-mid);
+      color:var(--white); font-family:'Inter',sans-serif; font-size:0.88rem;
+      outline:none; transition:border-color 0.2s;
+    }
+    .field input:focus, .field select:focus { border-color:var(--blue); }
+    .field input::placeholder { color:var(--muted); }
+    .field select option { background:var(--navy-mid); }
+
+    /* origin autocomplete */
+    .field.autocomplete-wrap { position:relative; }
+    .autocomplete-list {
+      display:none; position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:50;
+      background:var(--navy-mid); border:1px solid var(--border); border-radius:10px;
+      max-height:220px; overflow-y:auto; box-shadow:0 10px 30px rgba(0,0,0,0.4);
+    }
+    .autocomplete-list.visible { display:block; }
+    .autocomplete-item {
+      padding:10px 14px; font-size:0.82rem; color:var(--off-white); cursor:pointer;
+      border-bottom:1px solid var(--border); display:flex; align-items:flex-start; gap:8px;
+    }
+    .autocomplete-item:last-child { border-bottom:none; }
+    .autocomplete-item:hover, .autocomplete-item.active-suggestion {
+      background:rgba(0,163,224,0.12);
+    }
+    .autocomplete-item .ac-icon { color:var(--blue); flex-shrink:0; margin-top:1px; }
+    .autocomplete-item .ac-main { color:var(--white); font-weight:500; }
+    .autocomplete-item .ac-sub { color:var(--muted); font-size:0.72rem; margin-top:1px; }
+    .autocomplete-loading {
+      padding:10px 14px; font-size:0.78rem; color:var(--muted); display:none;
+    }
+    .autocomplete-loading.visible { display:block; }
+
+    /* generate button */
+    .btn-generate {
+      padding:12px 26px; border-radius:12px; border:none;
+      background:linear-gradient(135deg, var(--gold), #FFA500);
+      color:var(--navy); font-family:'Syne',sans-serif; font-weight:700;
+      font-size:0.9rem; cursor:pointer; transition:all 0.2s; white-space:nowrap;
+      box-shadow:0 4px 14px rgba(255,215,0,0.25);
+    }
+    .btn-generate:hover { transform:translateY(-1px); box-shadow:0 6px 18px rgba(255,215,0,0.35); }
+    .btn-generate:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+
+    /* ── ROUTE RESULT ── */
+    .route-result { display:none; background:var(--card); border:1px solid var(--border); border-radius:20px; padding:24px; }
+    .route-result.visible { display:block; animation:fadeIn 0.3s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
+
+    .route-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+    .route-from-to { }
+    .route-label { font-size:0.7rem; color:var(--muted); letter-spacing:1px; text-transform:uppercase; }
+    .route-main { font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:700; margin-top:3px; }
+    .route-badges { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .route-badge {
+      padding:5px 12px; border-radius:100px; font-size:0.72rem; font-weight:600;
+    }
+    .badge-time { background:rgba(0,214,143,0.12); color:var(--success); border:1px solid rgba(0,214,143,0.25); }
+    .badge-cost { background:rgba(255,215,0,0.1); color:var(--gold); border:1px solid rgba(255,215,0,0.2); }
+    .badge-co2  { background:rgba(0,163,224,0.1); color:var(--blue); border:1px solid rgba(0,163,224,0.2); }
+
+    /* timeline steps */
+    .timeline { display:flex; flex-direction:column; gap:0; }
+    .tl-step {
+      display:flex; gap:14px; position:relative;
+      padding-bottom:18px;
+    }
+    .tl-step:last-child { padding-bottom:0; }
+    .tl-left { display:flex; flex-direction:column; align-items:center; width:36px; flex-shrink:0; }
+    .tl-dot {
+      width:36px; height:36px; border-radius:50%; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center; font-size:1rem;
+      border:2px solid var(--border); background:var(--navy-mid); z-index:1;
+    }
+    .tl-dot.start  { border-color:var(--success); background:rgba(0,214,143,0.12); }
+    .tl-dot.end    { border-color:var(--gold);    background:rgba(255,215,0,0.12); }
+    .tl-dot.transit { border-color:var(--blue);   background:rgba(0,163,224,0.1); }
+    .tl-dot.walk   { border-color:var(--muted);   background:var(--card); }
+    .tl-line { width:2px; flex:1; background:var(--border); margin:4px 0; }
+    .tl-body { flex:1; padding-top:6px; }
+    .tl-time { font-size:0.7rem; color:var(--muted); font-weight:500; margin-bottom:3px; }
+    .tl-title { font-size:0.9rem; font-weight:600; color:var(--white); }
+    .tl-detail { font-size:0.78rem; color:var(--muted); margin-top:3px; line-height:1.5; }
+    .tl-tag {
+      display:inline-block; margin-top:6px; padding:3px 10px;
+      border-radius:100px; font-size:0.68rem; font-weight:600;
+      background:rgba(0,163,224,0.1); color:var(--blue); border:1px solid rgba(0,163,224,0.2);
+    }
+
+    /* ai insight box */
+    .ai-insight {
+      margin-top:20px; padding:14px 16px;
+      background:rgba(255,215,0,0.05); border:1px solid rgba(255,215,0,0.15);
+      border-radius:14px;
+    }
+    .ai-insight-label { font-size:0.7rem; color:var(--gold); font-weight:600; letter-spacing:0.5px; margin-bottom:6px; display:flex; align-items:center; gap:6px; }
+    .ai-insight-text { font-size:0.82rem; color:var(--off-white); line-height:1.6; }
+
+    /* warning box */
+    .route-warning {
+      margin-top:14px; padding:12px 14px;
+      background:rgba(255,159,67,0.08); border:1px solid rgba(255,159,67,0.2);
+      border-radius:12px; font-size:0.78rem; color:var(--warn); line-height:1.5;
+    }
+
+    /* loading */
+    .loading-overlay {
+      display:none; flex-direction:column; align-items:center; justify-content:center;
+      gap:12px; padding:40px; text-align:center;
+    }
+    .loading-overlay.active { display:flex; }
+    .spinner { width:32px; height:32px; border:2px solid var(--border); border-top-color:var(--gold); border-radius:50%; animation:spin 0.8s linear infinite; }
+    @keyframes spin { to{transform:rotate(360deg);} }
+    .loading-text { font-size:0.82rem; color:var(--muted); }
+
+    /* toast */
+    .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(60px); background:var(--navy-light); color:var(--white); border:1px solid var(--border); border-radius:100px; padding:10px 22px; font-size:0.82rem; z-index:999; transition:transform 0.3s; white-space:nowrap; }
+    .toast.show { transform:translateX(-50%) translateY(0); }
+
+    /* responsive */
+    @media(max-width:600px) {
+      nav { padding:0 16px; }
+      .nav-links { display:none; }
+      .steps-row { grid-template-columns:1fr 1fr; }
+      .city-grid { grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); }
+      .input-row { flex-direction:column; }
+      .route-header { flex-direction:column; }
+    }
+  </style>
+</head>
+<body>
+
+<a href="#mainContent" class="skip-link">Skip to main content</a>
+
+<!-- Nav -->
+<nav>
+  <a href="challenge_3.html" class="nav-brand">
+    <div class="nav-logo">M</div>
+    <span class="nav-name">Match<span>Pilot</span></span>
+  </a>
+  <div class="nav-links">
+    <a href="challenge_3.html" class="nav-link">💬 Ask</a>
+    <a href="stadium.html" class="nav-link">📡 Stadium Pulse</a>
+    <a href="route.html" class="nav-link active">🗺️ Match Route</a>
+    <a href="scoreboard.html" class="nav-link">🏆 Scoreboard</a>
+    <div class="nav-badge">FIFA 2026</div>
+  </div>
+</nav>
+
+<main class="page" id="mainContent">
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1>🗺️ <span>Match Route</span> Planner</h1>
+    <p>AI-powered transport directions from anywhere to every FIFA 2026 stadium — in seconds</p>
+  </div>
+
+  <!-- How it works -->
+  <div class="steps-row">
+    <div class="step-card">
+      <div class="step-num">1</div>
+      <div class="step-label">Pick your host city & stadium</div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">2</div>
+      <div class="step-label">Choose your transport type & starting point</div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">3</div>
+      <div class="step-label">Get your AI-generated step-by-step route</div>
+    </div>
+  </div>
+
+  <!-- Planner -->
+  <div class="planner">
+    <div class="planner-title">🏟️ Select host city</div>
+
+    <!-- City grid — 16 FIFA 2026 cities -->
+    <div class="city-grid" id="cityGrid">
+
+      <!-- USA -->
+      <button class="city-btn" data-city="Atlanta" data-country="USA" data-stadium="Mercedes-Benz Stadium" data-code="ATL" onclick="selectCity(this)">
+        <div class="city-flag">🇺🇸</div>
+        <div class="city-name">Atlanta, GA</div>
+        <div class="city-stadium">Mercedes-Benz Stadium</div>
+      </button>
+      <button class="city-btn" data-city="Boston" data-country="USA" data-stadium="Gillette Stadium" data-code="BOS" onclick="selectCity(this)">
+        <div class="city-flag">🇺🇸</div>
+        <div class="city-name">Boston, MA</div>
+        <div class="city-stadium">Gillette Stadium</div>
+      </button>
+      <button class="city-btn" data-city="Dallas" data-country="USA" data-stadium="AT&T Stadium" data-code="DAL" onclick="selectCity(this)">
+        <div class="city-flag">🇺🇸</div>
+        <div class="city-name">Dallas, TX</div>
+        <div class="city-stadium">AT&T Stadium</div>
+      </button>
+      <button class="city-btn" data-city="Houston" data-country="USA" data-stadium="NRG Stadium" data-code="HOU" onclick="selectCity(this)">
+        <div class="city-flag">🇺🇸</div>
+        <div class="city-name">Houston, TX</div>
+        <div class="city-stadium">NRG Stadium</div>
+      </button>
+      <button class="city-btn" data-city="Kansas City" data-country="USA" data-stadium="Arrowhead Stadium" data-code="KC" onclick="selectCity(this)">
+        <div class="city-flag">🇺🇸</div>
+        <div class="city-name">Kansas City, MO</div>
+        <div class="city-stadium">Arrowhead Stadium</div>
+      </button>
+      <button class="city-btn" data-city="Los Angeles" data-country="USA" data-stadium="SoFi Stadium" data-code="LAX" onclick="selectCity(this)">
+        <div class="city-flag">🇺🇸</div>
+        <div class="city-name">Los Angeles, CA</div>
+        <div class="city-stadium">SoFi Stadium</div>
+      </button>
+      <button class="city-btn" data-city="Miami" data-country="USA" data-stadium="Hard Rock Stadium" data-code="MIA" onclick="selectCity(this)">
+        <div class="city-flag">🇺🇸</div>
+        <div class="city-name">Miami, FL</div>
+        <div class="city-stadium">Hard Rock Stadium</div>
+      </button>
+      <button class="city-btn" data-city="New York/New Jersey" data-country="USA" data-stadium="MetLife Stadium" data-code="NYC" onclick="selectCity(this)">
+        <div class="city-flag">🇺🇸</div>
+        <div class="city-name">New York / NJ</div>
+        <div class="city-stadium">MetLife Stadium</div>
+      </button>
+      <button class="city-btn" data-city="Philadelphia" data-country="USA" data-stadium="Lincoln Financial Field" data-code="PHI" onclick="selectCity(this)">
+        <div class="city-flag">🇺🇸</div>
+        <div class="city-name">Philadelphia, PA</div>
+        <div class="city-stadium">Lincoln Financial Field</div>
+      </button>
+      <button class="city-btn" data-city="San Francisco" data-country="USA" data-stadium="Levi's Stadium" data-code="SFO" onclick="selectCity(this)">
+        <div class="city-flag">🇺🇸</div>
+        <div class="city-name">San Francisco, CA</div>
+        <div class="city-stadium">Levi's Stadium</div>
+      </button>
+      <button class="city-btn" data-city="Seattle" data-country="USA" data-stadium="Lumen Field" data-code="SEA" onclick="selectCity(this)">
+        <div class="city-flag">🇺🇸</div>
+        <div class="city-name">Seattle, WA</div>
+        <div class="city-stadium">Lumen Field</div>
+      </button>
+
+      <!-- Mexico -->
+      <button class="city-btn" data-city="Guadalajara" data-country="Mexico" data-stadium="Estadio Akron" data-code="GDL" onclick="selectCity(this)">
+        <div class="city-flag">🇲🇽</div>
+        <div class="city-name">Guadalajara</div>
+        <div class="city-stadium">Estadio Akron</div>
+      </button>
+      <button class="city-btn" data-city="Mexico City" data-country="Mexico" data-stadium="Estadio Azteca" data-code="MEX" onclick="selectCity(this)">
+        <div class="city-flag">🇲🇽</div>
+        <div class="city-name">Mexico City</div>
+        <div class="city-stadium">Estadio Azteca</div>
+      </button>
+      <button class="city-btn" data-city="Monterrey" data-country="Mexico" data-stadium="Estadio BBVA" data-code="MTY" onclick="selectCity(this)">
+        <div class="city-flag">🇲🇽</div>
+        <div class="city-name">Monterrey</div>
+        <div class="city-stadium">Estadio BBVA</div>
+      </button>
+
+      <!-- Canada -->
+      <button class="city-btn" data-city="Toronto" data-country="Canada" data-stadium="BMO Field" data-code="YYZ" onclick="selectCity(this)">
+        <div class="city-flag">🇨🇦</div>
+        <div class="city-name">Toronto</div>
+        <div class="city-stadium">BMO Field</div>
+      </button>
+      <button class="city-btn" data-city="Vancouver" data-country="Canada" data-stadium="BC Place" data-code="YVR" onclick="selectCity(this)">
+        <div class="city-flag">🇨🇦</div>
+        <div class="city-name">Vancouver</div>
+        <div class="city-stadium">BC Place</div>
+      </button>
+
+    </div>
+
+    <div class="planner-divider"></div>
+
+    <!-- Transport type -->
+    <div class="section-label">Your starting transport type</div>
+    <div class="transport-grid" id="transportGrid">
+      <button class="transport-btn" data-mode="airport" onclick="selectTransport(this)">
+        <div class="transport-icon">✈️</div>
+        <div class="transport-name">From Airport</div>
+        <div class="transport-note">Just landed</div>
+      </button>
+      <button class="transport-btn" data-mode="hotel" onclick="selectTransport(this)">
+        <div class="transport-icon">🏨</div>
+        <div class="transport-name">From Hotel</div>
+        <div class="transport-note">City centre</div>
+      </button>
+      <button class="transport-btn" data-mode="train" onclick="selectTransport(this)">
+        <div class="transport-icon">🚆</div>
+        <div class="transport-name">Train / Rail</div>
+        <div class="transport-note">Eco-friendly</div>
+      </button>
+      <button class="transport-btn" data-mode="bus" onclick="selectTransport(this)">
+        <div class="transport-icon">🚌</div>
+        <div class="transport-name">Bus / Coach</div>
+        <div class="transport-note">Budget option</div>
+      </button>
+      <button class="transport-btn" data-mode="rideshare" onclick="selectTransport(this)">
+        <div class="transport-icon">🚗</div>
+        <div class="transport-name">Rideshare</div>
+        <div class="transport-note">Uber / Lyft</div>
+      </button>
+      <button class="transport-btn" data-mode="drive" onclick="selectTransport(this)">
+        <div class="transport-icon">🅿️</div>
+        <div class="transport-name">Drive & Park</div>
+        <div class="transport-note">Own vehicle</div>
+      </button>
+    </div>
+
+    <div class="planner-divider"></div>
+
+    <!-- Origin + time inputs -->
+    <div class="input-row">
+      <div class="field autocomplete-wrap">
+        <label for="originInput">Your starting location</label>
+        <input type="text" id="originInput" placeholder="e.g. Times Square, downtown hotel, JFK Airport..." autocomplete="off"
+          role="combobox" aria-expanded="false" aria-controls="originSuggestions" aria-autocomplete="list"/>
+        <div class="autocomplete-list" id="originSuggestions" role="listbox" aria-label="Location suggestions">
+          <div class="autocomplete-loading" id="originLoading">Searching…</div>
+        </div>
+      </div>
+      <div class="field" style="max-width:170px;">
+        <label>Match kickoff time</label>
+        <input type="time" id="kickoffTime" value="20:00"/>
+      </div>
+      <button class="btn-generate" id="generateBtn" onclick="generateRoute()">Get my route →</button>
+    </div>
+  </div>
+
+  <!-- Route Result -->
+  <div class="route-result" id="routeResult">
+
+    <!-- Loading -->
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+      <div class="loading-text" id="loadingText">Planning your route...</div>
+    </div>
+
+    <!-- Result content -->
+    <div id="resultContent" style="display:none;">
+      <div class="route-header">
+        <div class="route-from-to">
+          <div class="route-label">Your match day route</div>
+          <div class="route-main" id="routeMainTitle">—</div>
+        </div>
+        <div>
+          <div class="route-badges">
+            <span class="route-badge badge-time" id="badgeTime">~45 min</span>
+            <span class="route-badge badge-cost" id="badgeCost">~$12</span>
+            <span class="route-badge badge-co2" id="badgeCo2">Low CO₂</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="timeline" id="routeTimeline"></div>
+
+      <!-- AI insight -->
+      <div class="ai-insight">
+        <div class="ai-insight-label">⚡ MatchPilot AI insight</div>
+        <div class="ai-insight-text" id="aiInsightText">—</div>
+      </div>
+
+      <!-- Warning if applicable -->
+      <div class="route-warning" id="routeWarning" style="display:none;"></div>
+    </div>
+
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="secure-code.js"></script>
+<script>
+  // ── GROQ CONFIG ───────────────────────────────────────────────
+  const GROQ_API_KEY = 'YOUR_GROQ_API_KEY'
+  const GROQ_MODEL   = 'llama-3.3-70b-versatile'
+
+  // ── CITY TRANSPORT KNOWLEDGE BASE ────────────────────────────
+  // Hardcoded real transport facts per city — Groq uses this as context
+  const CITY_DATA = {
+    'Atlanta': {
+      airport: 'Hartsfield-Jackson Atlanta International (ATL)',
+      airportToStadium: 'MARTA Red/Gold Line from Airport Station → Vine City Station (25 min, $2.50). Stadium is 5 min walk.',
+      parking: 'Limited parking around Georgia World Congress Center. Use MARTA to avoid traffic.',
+      transit: 'MARTA rail serves the stadium directly at Vine City station.',
+      warning: null,
+      co2tip: 'MARTA saves ~4.2 kg CO₂ vs driving from the airport.'
+    },
+    'Boston': {
+      airport: 'Logan International Airport (BOS)',
+      airportToStadium: 'Take Silver Line from Logan to South Station, then Commuter Rail Framingham/Worcester line to Foxboro Station (75 min total, ~$15). Official FIFA shuttle from Foxboro Station to Gillette Stadium (10 min).',
+      parking: 'Dedicated stadium parking available but fills fast. Arrive 2+ hrs early.',
+      transit: 'No direct MBTA metro to stadium. Commuter rail + shuttle is the recommended route.',
+      warning: 'Gillette Stadium is 35 km south of Boston — plan significant travel time.',
+      co2tip: 'Commuter rail emits 80% less CO₂ than a rideshare for this journey.'
+    },
+    'Dallas': {
+      airport: 'Dallas/Fort Worth International (DFW)',
+      airportToStadium: 'DART Orange Line from DFW → Downtown Dallas transfer → TRE (Trinity Railway Express) to CentrePort Station, then shuttle to AT&T Stadium (60 min total, ~$10).',
+      parking: 'Extensive parking lots around AT&T Stadium. Arrive 90 min early.',
+      transit: 'TRE connects Dallas to stadium area. FIFA shuttle from CentrePort.',
+      warning: 'Texas summer heat can be extreme — stay hydrated, use the shuttle.',
+      co2tip: 'TRE + shuttle saves ~7 kg CO₂ compared to driving from DFW.'
+    },
+    'Houston': {
+      airport: 'George Bush Intercontinental (IAH)',
+      airportToStadium: 'Take the 102 Express Bus from IAH to downtown Houston, then Metro Rail Red Line south to NRG Park Station (50 min total, ~$3.50). 3 min walk to NRG Stadium.',
+      parking: 'NRG Park has extensive parking — lots open 4 hrs before kickoff.',
+      transit: 'Metro Rail Red Line has a dedicated NRG Park stop.',
+      warning: null,
+      co2tip: 'Metro Rail direct to NRG Park — one of the greenest routes of any FIFA 2026 venue.'
+    },
+    'Kansas City': {
+      airport: 'Kansas City International (MCI)',
+      airportToStadium: 'KCI Shuttle to downtown Kansas City (25 min), then rideshare/taxi to Arrowhead Stadium (15 min, ~$20) or official FIFA coach from Convention Center.',
+      parking: 'Large stadium parking lots. Rideshare drop-off has dedicated zones.',
+      transit: 'Limited public transit to Arrowhead. Rideshare or shuttle recommended.',
+      warning: 'Kansas City has limited public transit to the stadium — plan rideshare in advance.',
+      co2tip: 'Book shared rideshare (UberPool/Lyft Shared) to reduce emissions with fellow fans.'
+    },
+    'Los Angeles': {
+      airport: 'Los Angeles International (LAX)',
+      airportToStadium: 'FlyAway Bus from LAX to Union Station (40 min, $9.75), then Metro C Line (Green) to Crenshaw/LAX → transfer → Metro K Line to Inglewood/Downtown station, then walk 10 min to SoFi Stadium (60 min total). Or rideshare direct ~25 min ($25-40).',
+      parking: 'SoFi Stadium has very limited parking — rideshare or Metro strongly recommended.',
+      transit: 'Metro K Line (Crenshaw) serves Inglewood area near SoFi.',
+      warning: 'LA traffic can add 60+ minutes to any drive. Metro is strongly recommended.',
+      co2tip: 'LA Metro to SoFi saves ~6 kg CO₂ versus rideshare from LAX.'
+    },
+    'Miami': {
+      airport: 'Miami International Airport (MIA)',
+      airportToStadium: 'MIA Mover to Airport Station, then Metrorail Orange Line north to Okeechobee, then bus or rideshare to Hard Rock Stadium (45 min total, ~$5). Rideshare direct ~20 min ($20-35).',
+      parking: 'Hard Rock Stadium has parking — avoid game-day traffic by arriving 2 hrs early.',
+      transit: 'Metrorail connects to stadium area. FIFA shuttle service expected from Okeechobee.',
+      warning: 'Florida summer heat and humidity — wear sunscreen and bring water.',
+      co2tip: 'Metrorail + shuttle saves ~5 kg CO₂ versus driving from downtown Miami.'
+    },
+    'New York/New Jersey': {
+      airport: 'Newark Liberty International (EWR) / JFK / LaGuardia (LGA)',
+      airportToStadium: 'From NYC Penn Station: NJ Transit train to Secaucus Junction (10 min, $4), then Meadowlands Rail Line to MetLife Stadium Station (11 min, $5). Total ~25 min from Penn Station. From EWR: AirTrain to NJ Transit, then Secaucus Junction → Meadowlands Rail.',
+      parking: '⚠️ CRITICAL: MetLife Stadium has NO public match-day parking available. NJ Transit + Meadowlands Rail is the ONLY viable option.',
+      transit: 'NJ Transit → Secaucus Junction → Meadowlands Rail Line to stadium. This is the only realistic transport.',
+      warning: '⚠️ MetLife Stadium has ZERO public parking on match days. You MUST use NJ Transit rail. Plan to arrive at Penn Station 90 min before kickoff.',
+      co2tip: 'Rail-only venue — one of the most sustainable FIFA 2026 host sites. Saves ~12 kg CO₂ vs driving.'
+    },
+    'Philadelphia': {
+      airport: 'Philadelphia International Airport (PHL)',
+      airportToStadium: 'SEPTA Airport Line to Center City (20 min, $8), then SEPTA Broad Street Line south to NRG/Sports Complex Station, then walk 5 min to Lincoln Financial Field (40 min total).',
+      parking: 'Sports Complex has parking. SEPTA is faster and avoids traffic.',
+      transit: 'SEPTA Broad Street Line has a direct stop at the Sports Complex.',
+      warning: null,
+      co2tip: 'SEPTA Broad Street Line — direct to the stadium, saves ~5 kg CO₂ from airport.'
+    },
+    'San Francisco': {
+      airport: 'San Francisco International (SFO)',
+      airportToStadium: 'BART from SFO to Millbrae, then Caltrain south to Santa Clara, then free VTA shuttle to Levi\'s Stadium (60 min total, ~$8). Or rideshare direct ~25 min ($35-50).',
+      parking: 'Levi\'s Stadium has game-day parking but fills early. Light rail preferred.',
+      transit: 'VTA Light Rail serves Levi\'s Stadium directly. Free stadium shuttles from Santa Clara Caltrain.',
+      warning: null,
+      co2tip: 'Caltrain + VTA shuttle — scenic Bay Area transit saves ~8 kg CO₂ vs driving.'
+    },
+    'Seattle': {
+      airport: 'Seattle-Tacoma International (SEA)',
+      airportToStadium: 'Link Light Rail from Sea-Tac to International District/Chinatown Station (35 min, $3.25), then walk 5 min to Lumen Field.',
+      parking: 'Limited downtown parking. Light Rail is fast and direct.',
+      transit: 'Link Light Rail International District/Chinatown Station — 5 min walk to Lumen Field.',
+      warning: null,
+      co2tip: 'Seattle Link Light Rail is 100% carbon-free electricity powered. Zero direct CO₂.'
+    },
+    'Guadalajara': {
+      airport: 'Don Miguel Hidalgo y Costilla International Airport (GDL)',
+      airportToStadium: 'SITEUR Mi Tren (metro line 3) planned service from city centre. Taxi/rideshare from airport ~35 min ($15-25). Uber available.',
+      parking: 'Parking available at Estadio Akron. Rideshare recommended due to match day traffic.',
+      transit: 'Guadalajara metro connects city centre — taxi/rideshare for last mile to stadium.',
+      warning: 'Altitude note: Guadalajara is at 1,500m elevation — allow acclimatisation time.',
+      co2tip: 'Shared taxi (colectivo) with other fans is the most eco-friendly local option.'
+    },
+    'Mexico City': {
+      airport: 'Aeropuerto Internacional de la Ciudad de México (MEX)',
+      airportToStadium: 'Metro Line 5 from airport to Pantitlan, transfer to Line 2 to Tasqueña, then transfer to Line 2 south to Division del Norte, then Tren Ligero to Estadio Azteca station (60 min total, ~$0.50). Or rideshare/Uber ~30 min ($8-15).',
+      parking: 'Stadium has parking but traffic is severe. Metro + Tren Ligero highly recommended.',
+      transit: 'Tren Ligero has a dedicated Estadio Azteca station — cheapest and fastest.',
+      warning: '⚠️ Mexico City altitude is 2,240m — fans with health concerns should acclimatise and stay hydrated.',
+      co2tip: 'Mexico City Metro is one of the cheapest and cleanest ways to reach Azteca. ~9 kg CO₂ saved vs rideshare.'
+    },
+    'Monterrey': {
+      airport: 'General Mariano Escobedo International Airport (MTY)',
+      airportToStadium: 'Ecovía BRT from airport area to city, then Metro Line 1 or 2 to Estadio BBVA (45 min total, ~$1). Uber/rideshare available ~25 min ($10-20).',
+      parking: 'Stadium has parking. Uber recommended for convenience.',
+      transit: 'Monterrey Metro serves the Estadio BBVA area.',
+      warning: null,
+      co2tip: 'Monterrey Metro + BRT combo — budget friendly and low emission option.'
+    },
+    'Toronto': {
+      airport: 'Toronto Pearson International (YYZ)',
+      airportToStadium: 'Union Pearson Express from Pearson to Union Station (25 min, $12.35), then TTC streetcar or walk 15 min west along the waterfront to BMO Field.',
+      parking: 'Limited parking near BMO Field. TTC recommended.',
+      transit: 'TTC Streetcar 509 or 511 from Union Station to Exhibition Place.',
+      warning: null,
+      co2tip: 'UP Express + TTC streetcar — Toronto transit is clean and reliable.'
+    },
+    'Vancouver': {
+      airport: 'Vancouver International Airport (YVR)',
+      airportToStadium: 'Canada Line SkyTrain from YVR-Airport to City Centre or Yaletown (25 min, $10.25), then walk 15 min or take a bus to BC Place.',
+      parking: 'Very limited parking near BC Place. SkyTrain is the ideal option.',
+      transit: 'Canada Line stops at City Centre and Yaletown — both within 15 min walk of BC Place.',
+      warning: null,
+      co2tip: 'Vancouver SkyTrain runs on 95% clean hydro electricity. Near-zero CO₂ travel.'
+    }
+  }
+
+  // ── STATE ─────────────────────────────────────────────────────
+  let selectedCity     = null
+  let selectedCityEl   = null
+  let selectedTransport = null
+  let selectedTransEl  = null
+
+  const sanitize = (str) => window.MatchPilotSecurity.sanitizeInput(str)
+
+  // ── SELECTIONS ────────────────────────────────────────────────
+  window.selectCity = function(btn) {
+    if (selectedCityEl) selectedCityEl.classList.remove('selected')
+    btn.classList.add('selected')
+    selectedCityEl = btn
+    selectedCity = {
+      city:    btn.dataset.city,
+      country: btn.dataset.country,
+      stadium: btn.dataset.stadium,
+      code:    btn.dataset.code
+    }
+    showToast(`📍 ${btn.dataset.city} — ${btn.dataset.stadium} selected`)
+  }
+
+  window.selectTransport = function(btn) {
+    if (selectedTransEl) selectedTransEl.classList.remove('selected')
+    btn.classList.add('selected')
+    selectedTransEl  = btn
+    selectedTransport = btn.dataset.mode
+  }
+
+  // ── GENERATE ROUTE ────────────────────────────────────────────
+  window.generateRoute = async function() {
+    if (!selectedCity) { showToast('Please select a host city first'); return }
+    if (!selectedTransport) { showToast('Please select your transport type'); return }
+
+    const origin  = document.getElementById('originInput').value.trim()
+    const kickoff = document.getElementById('kickoffTime').value
+
+    if (!origin) { showToast('Please enter your starting location'); return }
+
+    // Show result panel with loading
+    const resultEl  = document.getElementById('routeResult')
+    const loadingEl = document.getElementById('loadingOverlay')
+    const contentEl = document.getElementById('resultContent')
+
+    resultEl.classList.add('visible')
+    loadingEl.classList.add('active')
+    contentEl.style.display = 'none'
+
+    resultEl.scrollIntoView({ behavior:'smooth', block:'start' })
+
+    const cityInfo = CITY_DATA[selectedCity.city] || {}
+
+    // Build Groq prompt
+    const systemPrompt = `You are MatchPilot, an AI transport planner for FIFA World Cup 2026.
+Generate a precise, step-by-step transport route for a fan travelling to a FIFA 2026 stadium.
+You MUST respond with ONLY valid JSON in this exact format, no markdown, no explanation:
+{
+  "title": "short route summary (max 12 words)",
+  "duration": "total travel time e.g. ~45 min",
+  "cost": "estimated cost range e.g. ~$8-12",
+  "co2": "CO2 impact e.g. Low CO₂ (rail) or Medium CO₂ (rideshare)",
+  "steps": [
+    {"type":"start","time":"HH:MM","icon":"📍","title":"step title","detail":"step detail"},
+    {"type":"transit","time":"HH:MM","icon":"🚆","title":"step title","detail":"detail","tag":"optional tag"},
+    {"type":"walk","time":"HH:MM","icon":"🚶","title":"step title","detail":"detail"},
+    {"type":"end","time":"HH:MM","icon":"🏟️","title":"Arrive at stadium","detail":"detail"}
+  ],
+  "insight": "2-3 sentence AI insight about this route — crowd tips, best departure time, what to avoid",
+  "warning": "important warning if any (or null)"
+}`
+
+    const userPrompt = `Plan a FIFA 2026 match day route:
+- Destination: ${selectedCity.stadium}, ${selectedCity.city}, ${selectedCity.country}
+- Fan's starting point: ${sanitize(origin)}
+- Preferred transport: ${selectedTransport}
+- Match kickoff: ${kickoff}
+- City transport facts: ${JSON.stringify(cityInfo)}
+
+Calculate backwards from kickoff to determine departure time. Account for stadium entry queues (arrive 60 min before kickoff minimum). Include real transport options for this city. Give accurate times, costs in local currency, and practical advice.`
+
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${GROQ_API_KEY}` },
+        body: JSON.stringify({
+          model: GROQ_MODEL,
+          messages: [
+            { role:'system', content:systemPrompt },
+            { role:'user',   content:userPrompt }
+          ],
+          max_tokens: 700,
+          temperature: 0.4
+        })
+      })
+
+      const data  = await res.json()
+      const raw   = data.choices?.[0]?.message?.content || ''
+      const clean = raw.replace(/```json|```/g,'').trim()
+      const route = JSON.parse(clean)
+
+      renderRoute(route, origin)
+
+    } catch (err) {
+      console.error('[MatchPilot Route]', err)
+      // Fallback using city data directly
+      renderFallback(cityInfo, origin, kickoff)
+    }
+
+    loadingEl.classList.remove('active')
+    contentEl.style.display = 'block'
+  }
+
+  // ── RENDER ROUTE ──────────────────────────────────────────────
+  function renderRoute(route, origin) {
+    document.getElementById('routeMainTitle').textContent = sanitize(route.title || `${sanitize(origin)} → ${selectedCity.stadium}`)
+    document.getElementById('badgeTime').textContent = sanitize(route.duration || '—')
+    document.getElementById('badgeCost').textContent = sanitize(route.cost || '—')
+    document.getElementById('badgeCo2').textContent  = sanitize(route.co2 || '—')
+    document.getElementById('aiInsightText').textContent = sanitize(route.insight || '—')
+
+    const warningEl = document.getElementById('routeWarning')
+    if (route.warning) {
+      warningEl.textContent = sanitize(route.warning)
+      warningEl.style.display = 'block'
+    } else {
+      warningEl.style.display = 'none'
+    }
+
+    const timeline = document.getElementById('routeTimeline')
+    timeline.innerHTML = ''
+
+    const steps = route.steps || []
+    steps.forEach((step, i) => {
+      const isLast = i === steps.length - 1
+      const dotClass = step.type === 'start' ? 'start' : step.type === 'end' ? 'end' : step.type === 'walk' ? 'walk' : 'transit'
+
+      const div = document.createElement('div')
+      div.className = 'tl-step'
+      const esc = window.MatchPilotSecurity.escapeHtml
+      div.innerHTML = `
+        <div class="tl-left">
+          <div class="tl-dot ${dotClass}">${esc(step.icon || '•')}</div>
+          ${!isLast ? '<div class="tl-line"></div>' : ''}
+        </div>
+        <div class="tl-body">
+          <div class="tl-time">${esc(step.time || '')}</div>
+          <div class="tl-title">${esc(step.title || '')}</div>
+          <div class="tl-detail">${esc(step.detail || '')}</div>
+          ${step.tag ? `<span class="tl-tag">${esc(step.tag)}</span>` : ''}
+        </div>`
+      timeline.appendChild(div)
+    })
+  }
+
+  // ── FALLBACK (when Groq fails / no key yet) ───────────────────
+  function renderFallback(cityInfo, origin, kickoff) {
+    const esc = window.MatchPilotSecurity.escapeHtml
+    const stadium  = selectedCity?.stadium || 'the stadium'
+    const cityName = selectedCity?.city    || 'this city'
+    // origin is free-text user input — it must never be interpolated into
+    // innerHTML without escaping (see steps[] below).
+    const safeOrigin = esc(origin)
+
+    document.getElementById('routeMainTitle').textContent = `${origin} → ${stadium}`
+    document.getElementById('badgeTime').textContent = 'See steps below'
+    document.getElementById('badgeCost').textContent = 'Varies'
+    document.getElementById('badgeCo2').textContent  = 'Low CO₂ (transit)'
+    document.getElementById('aiInsightText').textContent =
+      cityInfo.airportToStadium || `Check local transit options to reach ${stadium} in ${cityName}. Arrive at least 60 minutes before kickoff for security checks.`
+
+    const warningEl = document.getElementById('routeWarning')
+    if (cityInfo.warning) {
+      warningEl.textContent = cityInfo.warning
+      warningEl.style.display = 'block'
+    } else {
+      warningEl.style.display = 'none'
+    }
+
+    const timeline = document.getElementById('routeTimeline')
+    timeline.innerHTML = ''
+
+    const steps = [
+      { type:'start',   icon:'📍', title:`Start at ${safeOrigin}`,        detail:'Prepare your ticket, ID, and arrive early.' },
+      { type:'transit', icon:'🚆', title:'Take local transit',             detail: esc(cityInfo.transit || 'Check local transport authority for schedules.'),  tag:'Recommended' },
+      { type:'walk',    icon:'🚶', title:'Walk to stadium entrance',       detail:'Follow FIFA signage and stadium staff directions.' },
+      { type:'end',     icon:'🏟️', title:`Arrive at ${esc(stadium)}`,     detail:'Proceed through security. Have your ticket ready on your phone or printed.' }
+    ]
+
+    // NOTE: icon/title/detail/tag above are already escaped where they can
+    // contain dynamic data (origin, stadium, cityInfo.transit); the
+    // remaining literals are fixed strings we wrote ourselves.
+    steps.forEach((step, i) => {
+      const isLast = i === steps.length - 1
+      const dotClass = step.type === 'start' ? 'start' : step.type === 'end' ? 'end' : step.type === 'walk' ? 'walk' : 'transit'
+      const div = document.createElement('div')
+      div.className = 'tl-step'
+      div.innerHTML = `
+        <div class="tl-left">
+          <div class="tl-dot ${dotClass}">${step.icon}</div>
+          ${!isLast ? '<div class="tl-line"></div>' : ''}
+        </div>
+        <div class="tl-body">
+          <div class="tl-title">${step.title}</div>
+          <div class="tl-detail">${step.detail}</div>
+          ${step.tag ? `<span class="tl-tag">${step.tag}</span>` : ''}
+        </div>`
+      timeline.appendChild(div)
+    })
+  }
+
+  // ── ORIGIN LOCATION AUTOCOMPLETE (OpenStreetMap Nominatim) ─────
+  ;(function setupOriginAutocomplete() {
+    const input      = document.getElementById('originInput')
+    const listEl      = document.getElementById('originSuggestions')
+    const loadingEl   = document.getElementById('originLoading')
+    if (!input || !listEl) return
+
+    let debounceTimer = null
+    let activeIndex    = -1
+    let currentItems   = []
+    let currentRequest = 0
+
+    function hideList() {
+      listEl.classList.remove('visible')
+      listEl.querySelectorAll('.autocomplete-item').forEach(el => el.remove())
+      input.setAttribute('aria-expanded', 'false')
+      input.removeAttribute('aria-activedescendant')
+      activeIndex = -1
+      currentItems = []
+    }
+
+    function renderItems(items) {
+      listEl.querySelectorAll('.autocomplete-item').forEach(el => el.remove())
+      currentItems = items
+      activeIndex = -1
+
+      if (!items.length) {
+        hideList()
+        return
+      }
+
+      items.forEach((item, i) => {
+        const div = document.createElement('div')
+        div.className = 'autocomplete-item'
+        div.setAttribute('role', 'option')
+        div.id = `origin-option-${i}`
+        const esc = window.MatchPilotSecurity.escapeHtml
+        div.innerHTML = `
+          <span class="ac-icon">📍</span>
+          <span>
+            <span class="ac-main">${esc(item.mainText)}</span>
+            <span class="ac-sub">${esc(item.subText)}</span>
+          </span>`
+        div.addEventListener('mousedown', (e) => {
+          // mousedown fires before input blur, so selection registers reliably
+          e.preventDefault()
+          selectItem(item)
+        })
+        div.addEventListener('mouseenter', () => setActive(i))
+        listEl.appendChild(div)
+      })
+
+      listEl.classList.add('visible')
+      input.setAttribute('aria-expanded', 'true')
+    }
+
+    function setActive(index) {
+      const els = listEl.querySelectorAll('.autocomplete-item')
+      els.forEach(el => el.classList.remove('active-suggestion'))
+      if (index >= 0 && index < els.length) {
+        els[index].classList.add('active-suggestion')
+        els[index].scrollIntoView({ block: 'nearest' })
+        input.setAttribute('aria-activedescendant', els[index].id)
+      } else {
+        input.removeAttribute('aria-activedescendant')
+      }
+      activeIndex = index
+    }
+
+    function selectItem(item) {
+      input.value = item.fullText
+      hideList()
+      input.focus()
+    }
+
+    async function fetchSuggestions(query) {
+      const requestId = ++currentRequest
+      loadingEl.classList.add('visible')
+      listEl.classList.add('visible')
+
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&q=${encodeURIComponent(query)}`
+        const res = await fetch(url, { headers: { 'Accept-Language': 'en' } })
+        const data = await res.json()
+
+        // Ignore stale responses if a newer request has since been made
+        if (requestId !== currentRequest) return
+
+        const items = (data || []).map(place => {
+          const parts = (place.display_name || '').split(',').map(s => s.trim())
+          const mainText = parts[0] || place.display_name
+          const subText  = parts.slice(1).join(', ')
+          return { mainText, subText, fullText: place.display_name }
+        })
+
+        loadingEl.classList.remove('visible')
+        renderItems(items)
+      } catch (err) {
+        if (requestId !== currentRequest) return
+        console.error('[MatchPilot Autocomplete]', err)
+        loadingEl.classList.remove('visible')
+        hideList()
+      }
+    }
+
+    input.addEventListener('input', () => {
+      const query = input.value.trim()
+      clearTimeout(debounceTimer)
+
+      if (query.length < 3) {
+        loadingEl.classList.remove('visible')
+        hideList()
+        return
+      }
+
+      debounceTimer = setTimeout(() => fetchSuggestions(query), 350)
+    })
+
+    input.addEventListener('keydown', (e) => {
+      const count = currentItems.length
+      if (!listEl.classList.contains('visible') || !count) return
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setActive((activeIndex + 1) % count)
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setActive((activeIndex - 1 + count) % count)
+      } else if (e.key === 'Enter') {
+        if (activeIndex >= 0) {
+          e.preventDefault()
+          selectItem(currentItems[activeIndex])
+        } else {
+          hideList()
+        }
+      } else if (e.key === 'Escape') {
+        hideList()
+      }
+    })
+
+    input.addEventListener('blur', () => {
+      // slight delay so mousedown-based selection above can register first
+      setTimeout(hideList, 120)
+    })
+
+    document.addEventListener('click', (e) => {
+      if (!listEl.contains(e.target) && e.target !== input) hideList()
+    })
+  })()
+
+  // ── TOAST ─────────────────────────────────────────────────────
+  function showToast(msg) {
+    const t = document.getElementById('toast')
+    t.textContent = msg
+    t.classList.add('show')
+    setTimeout(() => t.classList.remove('show'), 3000)
+  }
+</script>
+</body>
+</html>

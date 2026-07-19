@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MatchPilot — Stadium Pulse</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy:       #0A1628;
+    --navy-mid:   #0F2040;
+    --navy-light: #1A3560;
+    --gold:       #FFD700;
+    --gold-dim:   #C9A800;
+    --blue:       #00A3E0;
+    --blue-dim:   #0077A8;
+    --white:      #FFFFFF;
+    --off-white:  #F0F4FF;
+    --muted:      #8899BB;
+    --border:     rgba(255,255,255,0.08);
+    --card:       rgba(255,255,255,0.04);
+    --card-hover: rgba(255,255,255,0.08);
+    --danger:     #FF4D4D;
+    --success:    #00D68F;
+    --caution:    #FFB020;
+    --pitch:      #0E5C33;
+  }
+
+  html, body {
+    min-height: 100%;
+    font-family: 'Inter', sans-serif;
+    font-weight: 300;
+    background: var(--navy);
+    color: var(--white);
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 20% 0%, rgba(0,163,224,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 100%, rgba(255,215,0,0.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  /* ── SKIP LINK (accessibility) ── */
+  .skip-link {
+    position: absolute; left: -9999px; top: auto;
+    z-index: 1000; background: var(--gold); color: var(--navy);
+    padding: 10px 18px; border-radius: 0 0 8px 0;
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.85rem;
+    text-decoration: none;
+  }
+  .skip-link:focus { left: 0; top: 0; }
+
+  /* ── NAV (shared) ── */
+  nav {
+    position:sticky; top:0; z-index:100;
+    background:rgba(10,22,40,0.92); backdrop-filter:blur(16px);
+    border-bottom:1px solid var(--border);
+    padding:0 28px; display:flex; align-items:center; justify-content:space-between; height:60px;
+  }
+  .nav-brand { display:flex; align-items:center; gap:10px; text-decoration:none; }
+  .nav-logo {
+    width:32px; height:32px; border-radius:8px;
+    background:linear-gradient(135deg, var(--gold) 0%, var(--blue) 100%);
+    display:flex; align-items:center; justify-content:center;
+    font-size:1rem; font-weight:800; color:var(--navy); font-family:'Syne',sans-serif;
+  }
+  .nav-name { font-family:'Syne',sans-serif; font-weight:700; font-size:1.1rem; color:var(--white); }
+  .nav-name span { color:var(--gold); }
+  .nav-links { display:flex; align-items:center; gap:6px; }
+  .nav-link { padding:7px 14px; border-radius:8px; font-size:0.8rem; font-weight:500; color:var(--muted); text-decoration:none; transition:all 0.15s; }
+  .nav-link:hover { background:var(--card-hover); color:var(--white); }
+  .nav-link.active { background:rgba(255,215,0,0.12); color:var(--gold); }
+  .nav-badge { background:var(--gold); color:var(--navy); border-radius:100px; padding:4px 10px; font-size:0.68rem; font-weight:700; font-family:'Syne',sans-serif; letter-spacing:0.5px; }
+  @media (max-width:760px) { .nav-links { display:none; } }
+
+  /* ── LAYOUT ── */
+  .page {
+    position: relative; z-index: 1;
+    max-width: 1180px; margin: 0 auto;
+    padding: 28px 20px 80px;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+
+  .page-header { text-align: center; padding: 6px 0 2px; }
+  .page-header h1 {
+    font-family: 'Syne', sans-serif; font-size: 1.5rem;
+    font-weight: 700; color: var(--white);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .page-header h1 .dot {
+    width: 8px; height: 8px; background: var(--success);
+    border-radius: 50%; animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.5;transform:scale(1.4);} }
+  .page-header p { font-size: 0.82rem; color: var(--muted); margin-top: 6px; max-width: 560px; margin-left:auto; margin-right:auto; line-height:1.5;}
+  .live-meta {
+    display:flex; align-items:center; justify-content:center; gap:14px;
+    margin-top:10px; flex-wrap:wrap;
+  }
+  .live-chip {
+    display:flex; align-items:center; gap:6px;
+    background: var(--card); border:1px solid var(--border);
+    border-radius:100px; padding:5px 12px; font-size:0.72rem; color:var(--muted);
+  }
+  .live-chip b { color: var(--white); font-weight:600; }
+  .demo-tag {
+    background: rgba(255,215,0,0.1); border:1px solid rgba(255,215,0,0.25);
+    color: var(--gold); font-weight:600;
+  }
+
+  /* ── ALERT BANNER ── */
+  .alert-banner {
+    display:none; align-items:center; gap:12px;
+    background: linear-gradient(90deg, rgba(255,77,77,0.16), rgba(255,77,77,0.04));
+    border:1px solid rgba(255,77,77,0.4); border-radius: 14px;
+    padding: 14px 18px; animation: alertIn 0.3s ease;
+  }
+  .alert-banner.show { display:flex; }
+  @keyframes alertIn { from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);} }
+  .alert-icon {
+    font-size:1.5rem; flex-shrink:0;
+    animation: shake 1.2s ease-in-out infinite;
+  }
+  @keyframes shake { 0%,100%{transform:rotate(0);} 25%{transform:rotate(-8deg);} 75%{transform:rotate(8deg);} }
+  .alert-body { flex:1; }
+  .alert-title { font-family:'Syne',sans-serif; font-weight:700; font-size:0.9rem; color:var(--danger); }
+  .alert-text { font-size:0.8rem; color: var(--off-white); margin-top:2px; line-height:1.5; }
+
+  /* ── GRID ── */
+  .pulse-grid { display:grid; grid-template-columns: 1.25fr 1fr; gap: 18px; align-items:start; }
+  @media (max-width: 900px) { .pulse-grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card); border:1px solid var(--border);
+    border-radius:20px; padding:18px 20px;
+  }
+  .card-title {
+    font-family:'Syne',sans-serif; font-weight:700; font-size:0.92rem;
+    display:flex; align-items:center; gap:8px; margin-bottom:14px; color: var(--white);
+  }
+  .card-title .sub { font-family:'Inter',sans-serif; font-weight:400; font-size:0.7rem; color: var(--muted); margin-left:auto; }
+
+  /* ── STADIUM SVG PANEL ── */
+  .stadium-wrap { display:flex; flex-direction:column; align-items:center; gap:14px; }
+  .stadium-svg { width:100%; max-width:520px; height:auto; }
+  .stand-band { transition: fill 1.1s ease, filter 0.8s ease; }
+  .stand-label { font-family:'Syne',sans-serif; font-weight:700; fill: var(--white); }
+  .stand-pct { font-family:'Inter',sans-serif; font-weight:600; fill: rgba(255,255,255,0.85); }
+  .gate-box { transition: fill 0.6s ease, stroke 0.6s ease; }
+  .gate-label { font-family:'Syne',sans-serif; font-weight:700; font-size:11px; fill: var(--off-white); }
+  .gate-pulse { animation: gatePulse 1.6s ease-in-out infinite; transform-origin: center; }
+  @keyframes gatePulse { 0%,100%{opacity:0.55; transform:scale(1);} 50%{opacity:0; transform:scale(1.7);} }
+  .flow-arrow { animation: flowMove 1.4s ease-in-out infinite; }
+  @keyframes flowMove { 0%,100%{opacity:0.35;} 50%{opacity:1;} }
+
+  /* legend */
+  .stand-legend {
+    display:flex; gap:14px; flex-wrap:wrap; justify-content:center;
+    font-size:0.72rem; color: var(--muted);
+  }
+  .stand-legend span { display:flex; align-items:center; gap:6px; }
+  .legend-dot { width:9px; height:9px; border-radius:50%; }
+
+  /* ── DENSITY METERS ── */
+  .density-row { display:flex; flex-direction:column; gap:12px; }
+  .density-item { display:flex; flex-direction:column; gap:5px; }
+  .density-top { display:flex; align-items:center; justify-content:space-between; font-size:0.78rem; }
+  .density-name { display:flex; align-items:center; gap:7px; font-weight:500; }
+  .status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .density-val { font-family:'Syne',sans-serif; font-weight:700; font-size:0.82rem; }
+  .density-track {
+    height:8px; border-radius:100px; background: var(--navy-mid);
+    overflow:hidden; border:1px solid var(--border);
+  }
+  .density-fill { height:100%; border-radius:100px; transition: width 1.1s ease, background 0.8s ease; }
+  .density-gate { font-size:0.68rem; color: var(--muted); }
+  .density-gate b { color: var(--gold); }
+
+  /* ── RECOMMENDED ACTION ── */
+  .action-list { display:flex; flex-direction:column; gap:10px; }
+  .action-item {
+    display:flex; gap:10px; align-items:flex-start;
+    background: var(--navy-mid); border:1px solid var(--border);
+    border-radius:12px; padding:10px 12px; font-size:0.8rem; line-height:1.5;
+  }
+  .action-icon { font-size:1rem; flex-shrink:0; }
+  .action-item b { color: var(--gold); }
+  .action-item.open b { color: var(--success); }
+  .action-item.closed b { color: var(--danger); }
+
+  /* ── AI ADVISORY ── */
+  .advisory-box {
+    background: var(--navy-mid); border:1px solid rgba(255,215,0,0.2);
+    border-radius: 14px; padding: 14px 16px; font-size:0.85rem; line-height:1.6;
+    color: var(--off-white); min-height: 64px; position:relative;
+  }
+  .advisory-tag {
+    display:inline-flex; align-items:center; gap:5px;
+    font-size:0.65rem; color: var(--gold); font-weight:700;
+    letter-spacing:0.4px; margin-bottom:6px; font-family:'Syne',sans-serif;
+  }
+  .advisory-tag .liveDotSm {
+    width:6px; height:6px; border-radius:50%; background: var(--success);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  .advisory-time { font-size:0.65rem; color: var(--muted); margin-top:8px; }
+  .advisory-footer {
+    display:flex; align-items:center; justify-content:space-between;
+    gap:10px; margin-top:10px;
+  }
+  #advisoryCountdown { font-size:0.68rem; color: var(--muted); }
+  .advisory-refresh-btn {
+    background: rgba(255,215,0,0.1); border:1px solid rgba(255,215,0,0.3);
+    color: var(--gold); font-size:0.7rem; font-weight:600;
+    border-radius:100px; padding:6px 12px; cursor:pointer;
+    transition: background 0.15s, opacity 0.15s;
+    font-family:'Inter',sans-serif;
+  }
+  .advisory-refresh-btn:hover:not(:disabled) { background: rgba(255,215,0,0.18); }
+  .advisory-refresh-btn:disabled { opacity:0.4; cursor:not-allowed; }
+  .advisory-loading { color: var(--muted); font-style:italic; }
+  .advisory-loading .dots span { animation: typingDot 1.2s ease-in-out infinite; display:inline-block; }
+  .advisory-loading .dots span:nth-child(2) { animation-delay:0.2s; }
+  .advisory-loading .dots span:nth-child(3) { animation-delay:0.4s; }
+  @keyframes typingDot { 0%,60%,100%{opacity:.3;} 30%{opacity:1;} }
+
+  /* ── ACTIVITY LOG ── */
+  .log-list {
+    display:flex; flex-direction:column; gap:8px;
+    max-height: 220px; overflow-y:auto;
+  }
+  .log-list::-webkit-scrollbar { width:4px; }
+  .log-list::-webkit-scrollbar-thumb { background: var(--navy-light); border-radius:4px; }
+  .log-item {
+    display:flex; gap:8px; font-size:0.76rem; color: var(--off-white);
+    padding: 7px 0; border-bottom: 1px solid var(--border);
+    animation: msgIn 0.3s ease; line-height:1.4;
+  }
+  .log-item:last-child { border-bottom:none; }
+  @keyframes msgIn { from{opacity:0;transform:translateY(-4px);} to{opacity:1;transform:translateY(0);} }
+  .log-time { color: var(--muted); font-size:0.68rem; flex-shrink:0; min-width:44px; }
+
+  /* ── SAFETY INSTRUCTIONS ── */
+  .instr-list { display:flex; flex-direction:column; gap:10px; }
+  .instr-item { display:flex; gap:10px; align-items:flex-start; font-size:0.82rem; line-height:1.5; color: var(--off-white); }
+  .instr-num {
+    width:20px; height:20px; border-radius:50%; background: rgba(255,215,0,0.12);
+    color: var(--gold); font-size:0.7rem; font-weight:700; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-family:'Syne',sans-serif;
+  }
+
+  .full-span { grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+
+<a href="#mainContent" class="skip-link">Skip to main content</a>
+
+<!-- Nav -->
+<nav>
+  <a href="challenge_3.html" class="nav-brand">
+    <div class="nav-logo">M</div>
+    <span class="nav-name">Match<span>Pilot</span></span>
+  </a>
+  <div class="nav-links">
+    <a href="challenge_3.html" class="nav-link">💬 Ask</a>
+    <a href="stadium.html" class="nav-link active">📡 Stadium Pulse</a>
+    <a href="route.html" class="nav-link">🗺️ Match Route</a>
+    <a href="scoreboard.html" class="nav-link">🏆 Scoreboard</a>
+    <div class="nav-badge">FIFA 2026</div>
+  </div>
+</nav>
+
+<main class="page" id="mainContent">
+
+  <!-- Header -->
+  <div class="page-header">
+    <h1><span class="dot"></span> Stadium Pulse</h1>
+    <p>Live crowd-density monitoring and gate control for the concourse. When a stand gets too full, Pulse recommends which gate to open or restrict so fans reroute before it becomes a crush — with plain-language guidance generated in real time.</p>
+    <div class="live-meta">
+      <div class="live-chip demo-tag">⚠️ Simulated demo data — not a real stadium feed</div>
+      <div class="live-chip">👥 Est. inside: <b id="totalCount">—</b></div>
+      <div class="live-chip">🕐 Updated <b id="lastUpdated">just now</b></div>
+    </div>
+  </div>
+
+  <!-- Alert banner -->
+  <div class="alert-banner" id="alertBanner">
+    <div class="alert-icon">🚨</div>
+    <div class="alert-body">
+      <div class="alert-title" id="alertTitle">Crowd density critical</div>
+      <div class="alert-text" id="alertText">—</div>
+    </div>
+  </div>
+
+  <div class="pulse-grid">
+
+    <!-- LEFT: Stadium visual -->
+    <div class="card">
+      <div class="card-title">🏟️ Live Stadium Showcase <span class="sub">Concourse view</span></div>
+      <div class="stadium-wrap">
+        <svg class="stadium-svg" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
+          <!-- Corner fillers for a rounded bowl feel -->
+          <rect x="60" y="60" width="150" height="150" rx="24" fill="#0F2040" opacity="0.6"/>
+          <rect x="590" y="60" width="150" height="150" rx="24" fill="#0F2040" opacity="0.6"/>
+          <rect x="60" y="590" width="150" height="150" rx="24" fill="#0F2040" opacity="0.6"/>
+          <rect x="590" y="590" width="150" height="150" rx="24" fill="#0F2040" opacity="0.6"/>
+
+          <!-- NORTH stand (Gate A) -->
+          <rect id="bandN" class="stand-band" x="60" y="60" width="680" height="150" rx="22" fill="#123a24"/>
+          <!-- SOUTH stand (Gate C) -->
+          <rect id="bandS" class="stand-band" x="60" y="590" width="680" height="150" rx="22" fill="#123a24"/>
+          <!-- WEST stand (Gate D) -->
+          <rect id="bandW" class="stand-band" x="60" y="210" width="150" height="380" rx="22" fill="#123a24"/>
+          <!-- EAST stand (Gate B) -->
+          <rect id="bandE" class="stand-band" x="590" y="210" width="150" height="380" rx="22" fill="#123a24"/>
+
+          <!-- Pitch -->
+          <rect x="210" y="210" width="380" height="380" rx="18" fill="var(--pitch)" stroke="#0a3d21" stroke-width="4"/>
+          <line x1="400" y1="210" x2="400" y2="590" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+          <circle cx="400" cy="400" r="55" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+          <circle cx="400" cy="400" r="3.5" fill="rgba(255,255,255,0.6)"/>
+          <rect x="290" y="210" width="220" height="55" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+          <rect x="290" y="535" width="220" height="55" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+
+          <!-- Stand labels + %  -->
+          <text x="400" y="105" text-anchor="middle" class="stand-label" font-size="15">NORTH STAND</text>
+          <text id="pctN" x="400" y="150" text-anchor="middle" class="stand-pct" font-size="26">—%</text>
+
+          <text x="400" y="670" text-anchor="middle" class="stand-label" font-size="15">SOUTH STAND</text>
+          <text id="pctS" x="400" y="715" text-anchor="middle" class="stand-pct" font-size="26">—%</text>
+
+          <text x="135" y="382" text-anchor="middle" class="stand-label" font-size="13">WEST STAND</text>
+          <text id="pctW" x="135" y="415" text-anchor="middle" class="stand-pct" font-size="22">—%</text>
+
+          <text x="665" y="382" text-anchor="middle" class="stand-label" font-size="13">EAST STAND</text>
+          <text id="pctE" x="665" y="415" text-anchor="middle" class="stand-pct" font-size="22">—%</text>
+
+          <!-- Status dots per stand -->
+          <circle id="dotN" cx="90" cy="90" r="7" fill="var(--success)"/>
+          <circle id="dotS" cx="90" cy="710" r="7" fill="var(--success)"/>
+          <circle id="dotW" cx="90" cy="230" r="7" fill="var(--success)"/>
+          <circle id="dotE" cx="710" cy="230" r="7" fill="var(--success)"/>
+
+          <!-- GATE A (north, outer edge top) -->
+          <g id="gateA">
+            <circle class="gate-pulse" cx="400" cy="40" r="16" fill="var(--success)"/>
+            <rect class="gate-box" id="gateBoxA" x="370" y="26" width="60" height="26" rx="6" fill="var(--success)" stroke="var(--white)" stroke-width="1"/>
+            <text x="400" y="43" text-anchor="middle" class="gate-label" fill="#052" font-size="11">GATE A</text>
+            <polygon id="arrowA" class="flow-arrow" points="400,58 393,68 407,68" fill="var(--success)"/>
+          </g>
+
+          <!-- GATE C (south, outer edge bottom) -->
+          <g id="gateC">
+            <circle class="gate-pulse" cx="400" cy="760" r="16" fill="var(--success)"/>
+            <rect class="gate-box" id="gateBoxC" x="370" y="748" width="60" height="26" rx="6" fill="var(--success)" stroke="var(--white)" stroke-width="1"/>
+            <text x="400" y="765" text-anchor="middle" class="gate-label" fill="#052" font-size="11">GATE C</text>
+            <polygon id="arrowC" class="flow-arrow" points="400,742 393,732 407,732" fill="var(--success)"/>
+          </g>
+
+          <!-- GATE D (west, outer edge left) -->
+          <g id="gateD">
+            <circle class="gate-pulse" cx="40" cy="400" r="16" fill="var(--success)"/>
+            <rect class="gate-box" id="gateBoxD" x="26" y="370" width="26" height="60" rx="6" fill="var(--success)" stroke="var(--white)" stroke-width="1"/>
+            <text x="39" y="404" text-anchor="middle" class="gate-label" fill="#052" font-size="10" transform="rotate(-90 39 404)">GATE D</text>
+            <polygon id="arrowD" class="flow-arrow" points="58,400 68,393 68,407" fill="var(--success)"/>
+          </g>
+
+          <!-- GATE B (east, outer edge right) -->
+          <g id="gateB">
+            <circle class="gate-pulse" cx="760" cy="400" r="16" fill="var(--success)"/>
+            <rect class="gate-box" id="gateBoxB" x="748" y="370" width="26" height="60" rx="6" fill="var(--success)" stroke="var(--white)" stroke-width="1"/>
+            <text x="761" y="404" text-anchor="middle" class="gate-label" fill="#052" font-size="10" transform="rotate(90 761 404)">GATE B</text>
+            <polygon id="arrowB" class="flow-arrow" points="742,400 732,393 732,407" fill="var(--success)"/>
+          </g>
+        </svg>
+
+        <div class="stand-legend">
+          <span><i class="legend-dot" style="background:var(--success)"></i> Safe (&lt;50%)</span>
+          <span><i class="legend-dot" style="background:var(--caution)"></i> Caution (50–80%)</span>
+          <span><i class="legend-dot" style="background:var(--danger)"></i> Critical (&gt;80%) — gate restricted</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT column -->
+    <div style="display:flex; flex-direction:column; gap:18px;">
+
+      <!-- Density meters -->
+      <div class="card">
+        <div class="card-title">📊 Stand Density &amp; Gate Status</div>
+        <div class="density-row" id="densityRow"></div>
+      </div>
+
+      <!-- Recommended actions -->
+      <div class="card">
+        <div class="card-title">🧭 Recommended Actions</div>
+        <div class="action-list" id="actionList"></div>
+      </div>
+
+      <!-- AI Advisory -->
+      <div class="card">
+        <div class="card-title">🤖 AI Crowd Advisory <span class="sub">Groq · low-frequency to save credits</span></div>
+        <div class="advisory-box" id="advisoryBox">
+          <div class="advisory-tag"><span class="liveDotSm"></span> LIVE ANNOUNCEMENT</div>
+          <div id="advisoryText" class="advisory-loading">Generating first safety briefing<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>
+          <div class="advisory-time" id="advisoryTime"></div>
+        </div>
+        <div class="advisory-footer">
+          <span id="advisoryCountdown">Next auto-update in 60s</span>
+          <button id="refreshAdvisoryBtn" class="advisory-refresh-btn">🔄 Refresh now</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Full width: Activity log + Instructions -->
+    <div class="card full-span" style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+      <div>
+        <div class="card-title">📡 Live Activity Feed <span class="sub" id="feedSub">auto-refreshing</span></div>
+        <div class="log-list" id="logList"></div>
+      </div>
+      <div>
+        <div class="card-title">🛡️ Fan Safety Instructions</div>
+        <div class="instr-list">
+          <div class="instr-item"><span class="instr-num">1</span>Enter and exit only through your assigned gate unless a steward or this board directs you to reroute.</div>
+          <div class="instr-item"><span class="instr-num">2</span>If your gate shows <b>RESTRICTED</b>, walk calmly to the nearest <b>OPEN</b> gate shown above — don't wait at a closed gate.</div>
+          <div class="instr-item"><span class="instr-num">3</span>Avoid stopping to gather in concourses, stairwells, or gate entrances — keep moving to your seat or exit.</div>
+          <div class="instr-item"><span class="instr-num">4</span>Families, wheelchair users, and fans needing assistance should prioritize the lowest-density gate shown live.</div>
+          <div class="instr-item"><span class="instr-num">5</span>In an emergency, follow steward instructions and green directional arrows over your original gate assignment.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script src="secure-code.js"></script>
+<script>
+  // ── CONFIG (same key/model as the main MatchPilot Ask page) ──
+  const GROQ_API_KEY = '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'
+  const GROQ_MODEL   = 'llama-3.3-70b-versatile'
+
+  const STANDS = [
+    { id:'N', name:'North Stand', gate:'A', capacity: 9000 },
+    { id:'E', name:'East Stand',  gate:'B', capacity: 7000 },
+    { id:'S', name:'South Stand', gate:'C', capacity: 9000 },
+    { id:'W', name:'West Stand',  gate:'D', capacity: 7000 },
+  ]
+
+  let density = { N: 38, E: 44, S: 30, W: 26 }   // % of capacity, 0-100
+  let gateState = { A:'OPEN', B:'OPEN', C:'OPEN', D:'OPEN' }
+  let tickCount = 0
+
+  // ── Groq credit-saving controls ──
+  let lastGroqCall = 0              // timestamp of last call (successful or attempted)
+  let lastGroqSnapshot = ''         // fingerprint of data sent last time, to skip no-op calls
+  let criticalGatesPrev = new Set() // gates that were critical last tick, to detect NEW critical events
+  const GROQ_REGULAR_GAP_MS = 60000     // routine refresh at most once a minute
+  const GROQ_URGENT_GAP_MS  = 25000     // a NEW critical event can still only call at most this often
+  const GROQ_MANUAL_COOLDOWN_MS = 10000 // manual button cooldown, prevents rapid clicking
+
+  function statusOf(pct) {
+    if (pct >= 80) return { level:'critical', color:'var(--danger)', hex:'#FF4D4D' }
+    if (pct >= 50) return { level:'caution',  color:'var(--caution)', hex:'#FFB020' }
+    return { level:'safe', color:'var(--success)', hex:'#00D68F' }
+  }
+
+  function fmtTime() {
+    return new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' })
+  }
+
+  // ── RENDER: stadium SVG ──
+  function renderStadium() {
+    STANDS.forEach(s => {
+      const st = statusOf(density[s.id])
+      const band = document.getElementById('band' + s.id)
+      band.style.fill = mixWithPitch(st.hex)
+      const pctEl = document.getElementById('pct' + s.id)
+      pctEl.textContent = Math.round(density[s.id]) + '%'
+      pctEl.style.fill = st.hex
+      const dot = document.getElementById('dot' + s.id)
+      if (dot) dot.setAttribute('fill', st.hex)
+    })
+
+    Object.keys(gateState).forEach(g => {
+      const open = gateState[g] === 'OPEN'
+      const box = document.getElementById('gateBox' + g)
+      const arrow = document.getElementById('arrow' + g)
+      const grp = document.getElementById('gate' + g)
+      const color = open ? '#00D68F' : '#FF4D4D'
+      box.setAttribute('fill', color)
+      if (arrow) arrow.setAttribute('fill', color)
+      grp.querySelector('.gate-pulse').setAttribute('fill', color)
+      grp.style.opacity = open ? '1' : '0.85'
+    })
+  }
+
+  function mixWithPitch(hex) {
+    // blend the status color with the dark band base so it stays readable, not neon
+    return `color-mix(in srgb, ${hex} 55%, #123a24 45%)`
+  }
+
+  // ── RENDER: density meters + gate list ──
+  function renderDensityPanel() {
+    const row = document.getElementById('densityRow')
+    row.innerHTML = STANDS.map(s => {
+      const pct = Math.round(density[s.id])
+      const st = statusOf(pct)
+      return `
+        <div class="density-item">
+          <div class="density-top">
+            <div class="density-name"><span class="status-dot" style="background:${st.hex}"></span>${s.name} · Gate ${s.gate}</div>
+            <div class="density-val" style="color:${st.hex}">${pct}%</div>
+          </div>
+          <div class="density-track"><div class="density-fill" style="width:${pct}%; background:${st.hex}"></div></div>
+          <div class="density-gate">Gate ${s.gate} is <b style="color:${gateState[s.gate]==='OPEN' ? 'var(--success)' : 'var(--danger)'}">${gateState[s.gate]}</b> · ~${Math.round(s.capacity * pct/100).toLocaleString()} / ${s.capacity.toLocaleString()} fans</div>
+        </div>`
+    }).join('')
+  }
+
+  // ── RENDER: recommended actions ──
+  function renderActions() {
+    const list = document.getElementById('actionList')
+    const critical = STANDS.filter(s => density[s.id] >= 80)
+    const safestStand = STANDS.reduce((a,b) => density[a.id] < density[b.id] ? a : b)
+
+    let items = []
+    if (critical.length === 0) {
+      items.push(`<div class="action-item open"><span class="action-icon">✅</span>All stands within safe range. All four gates <b>OPEN</b> — no rerouting needed.</div>`)
+    } else {
+      critical.forEach(s => {
+        items.push(`<div class="action-item closed"><span class="action-icon">⛔</span><b>Gate ${s.gate}</b> restricted — ${s.name} is over 80% capacity. Hold new entries here.</div>`)
+      })
+      items.push(`<div class="action-item open"><span class="action-icon">➡️</span>Redirect arriving fans to <b>Gate ${safestStand.gate}</b> (${safestStand.name}, lowest density at ${Math.round(density[safestStand.id])}%).</div>`)
+      items.push(`<div class="action-item"><span class="action-icon">📣</span>Stewards to hold a rolling entry pattern at restricted gates until density drops below 65%.</div>`)
+    }
+    list.innerHTML = items.join('')
+  }
+
+  // ── RENDER: alert banner ──
+  function renderAlert() {
+    const banner = document.getElementById('alertBanner')
+    const critical = STANDS.filter(s => density[s.id] >= 80)
+    if (critical.length === 0) { banner.classList.remove('show'); return }
+    const safestStand = STANDS.reduce((a,b) => density[a.id] < density[b.id] ? a : b)
+    document.getElementById('alertTitle').textContent =
+      `Crowd density critical — ${critical.map(s => s.name).join(', ')}`
+    document.getElementById('alertText').textContent =
+      `Gate${critical.length>1?'s':''} ${critical.map(s=>s.gate).join(', ')} restricted. Fans are being redirected to Gate ${safestStand.gate} (${Math.round(density[safestStand.id])}% full) to prevent a crush.`
+    banner.classList.add('show')
+  }
+
+  // ── LOG ──
+  function pushLog(text) {
+    const list = document.getElementById('logList')
+    const div = document.createElement('div')
+    div.className = 'log-item'
+    div.innerHTML = `<span class="log-time">${fmtTime()}</span><span>${text}</span>`
+    list.prepend(div)
+    while (list.children.length > 8) list.removeChild(list.lastChild)
+  }
+
+  function updateHeaderMeta() {
+    const total = STANDS.reduce((sum, s) => sum + Math.round(s.capacity * density[s.id] / 100), 0)
+    document.getElementById('totalCount').textContent = total.toLocaleString()
+    document.getElementById('lastUpdated').textContent = fmtTime()
+  }
+
+  // ── SIMULATION TICK ──
+  function tick() {
+    tickCount++
+    const prev = { ...density }
+
+    STANDS.forEach(s => {
+      let delta = (Math.random() * 14) - 6 // gentle random walk, slight upward bias
+      if (Math.random() < 0.1) delta += 22 + Math.random() * 14 // occasional surge → demo the disaster scenario
+      density[s.id] = Math.min(99, Math.max(4, density[s.id] + delta))
+    })
+
+    // recompute gate states from density
+    STANDS.forEach(s => {
+      const wasOpen = gateState[s.gate] === 'OPEN'
+      const nowOpen = density[s.id] < 80
+      gateState[s.gate] = nowOpen ? 'OPEN' : 'RESTRICTED'
+      if (wasOpen !== nowOpen) {
+        pushLog(nowOpen
+          ? `🟢 Gate ${s.gate} reopened — ${s.name} eased to ${Math.round(density[s.id])}%.`
+          : `🔴 Gate ${s.gate} restricted — ${s.name} hit ${Math.round(density[s.id])}%. Rerouting fans.`)
+      }
+    })
+
+    // log a couple of the biggest movers for that "it's alive" feel
+    const movers = STANDS
+      .map(s => ({ s, diff: density[s.id] - prev[s.id] }))
+      .sort((a,b) => Math.abs(b.diff) - Math.abs(a.diff))
+      .slice(0, 1)
+    movers.forEach(m => {
+      if (Math.abs(m.diff) > 12) {
+        const arrow = m.diff > 0 ? '🔺 rising' : '🔻 easing'
+        pushLog(`${arrow} — ${m.s.name} ${Math.round(prev[m.s.id])}% → ${Math.round(density[m.s.id])}%`)
+      }
+    })
+
+    renderStadium()
+    renderDensityPanel()
+    renderActions()
+    renderAlert()
+    updateHeaderMeta()
+
+    // Edge-trigger: only flag "urgent" when a gate becomes critical that WASN'T critical last tick.
+    // This avoids calling Groq on every tick while a stand simply stays critical.
+    const criticalNow = new Set(STANDS.filter(s => density[s.id] >= 80).map(s => s.gate))
+    let hasNewCritical = false
+    criticalNow.forEach(g => { if (!criticalGatesPrev.has(g)) hasNewCritical = true })
+    criticalGatesPrev = criticalNow
+
+    maybeCallGroq(hasNewCritical)
+  }
+
+  // ── AI ADVISORY via Groq (same key as Ask page) — throttled to save credits ──
+  async function maybeCallGroq(urgent) {
+    const now = Date.now()
+    const dueForRegular = now - lastGroqCall > GROQ_REGULAR_GAP_MS
+    const dueForUrgent = urgent && now - lastGroqCall > GROQ_URGENT_GAP_MS
+    if (!dueForRegular && !dueForUrgent) return
+
+    // Skip the call entirely if nothing meaningful changed since last time (rounded to nearest 5% per stand)
+    const snapshotFingerprint = STANDS.map(s => `${s.gate}:${Math.round(density[s.id]/5)*5}:${gateState[s.gate]}`).join('|')
+    if (snapshotFingerprint === lastGroqSnapshot && !urgent) return
+
+    lastGroqCall = now
+    lastGroqSnapshot = snapshotFingerprint
+    await fetchAdvisory()
+  }
+
+  // Manual "refresh now" button — bypasses the timing throttle but keeps its own short cooldown
+  let manualCooldownUntil = 0
+  async function manualRefreshAdvisory() {
+    const now = Date.now()
+    if (now < manualCooldownUntil) return
+    const btn = document.getElementById('refreshAdvisoryBtn')
+    manualCooldownUntil = now + GROQ_MANUAL_COOLDOWN_MS
+    btn.disabled = true
+    lastGroqCall = now
+    lastGroqSnapshot = STANDS.map(s => `${s.gate}:${Math.round(density[s.id]/5)*5}:${gateState[s.gate]}`).join('|')
+    await fetchAdvisory()
+    setTimeout(() => { btn.disabled = false }, GROQ_MANUAL_COOLDOWN_MS)
+  }
+
+  // Countdown label so it's clear the page is still "live" even while Groq calls are throttled
+  function updateAdvisoryCountdown() {
+    const el = document.getElementById('advisoryCountdown')
+    if (!el) return
+    const remaining = Math.max(0, Math.ceil((lastGroqCall + GROQ_REGULAR_GAP_MS - Date.now()) / 1000))
+    el.textContent = remaining > 0 ? `Next auto-update in ${remaining}s` : 'Auto-update due now'
+  }
+
+  function localFallbackAdvisory() {
+    const critical = STANDS.filter(s => density[s.id] >= 80)
+    const safest = STANDS.reduce((a,b) => density[a.id] < density[b.id] ? a : b)
+    if (critical.length) {
+      return `⚠️ ${critical.map(s=>s.name).join(' and ')} ${critical.length>1?'are':'is'} getting full. Please use Gate ${safest.gate} instead, move steadily, and follow steward directions — no need to rush.`
+    }
+    return `✅ All stands are flowing smoothly right now. Enter through your assigned gate, keep the concourse clear, and enjoy the match!`
+  }
+
+  async function fetchAdvisory() {
+    const textEl = document.getElementById('advisoryText')
+    const timeEl = document.getElementById('advisoryTime')
+    textEl.classList.add('advisory-loading')
+    textEl.innerHTML = `Refreshing safety briefing<span class="dots"><span>.</span><span>.</span><span>.</span></span>`
+
+    const snapshot = STANDS.map(s => `${s.name} (Gate ${s.gate}): ${Math.round(density[s.id])}% full, gate ${gateState[s.gate]}`).join('; ')
+
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: GROQ_MODEL,
+          messages: [
+            { role: 'system', content: 'You are the live stadium PA safety-advisory system for MatchPilot at a FIFA World Cup 2026 venue. Given a snapshot of stand density and gate status, write ONE short calm public announcement (max 3 sentences, no preamble, no markdown) telling fans which gate to use and how to stay safe. Be reassuring, specific about gate letters, and avoid causing panic.' },
+            { role: 'user', content: `Current snapshot: ${snapshot}. Write the announcement now.` }
+          ],
+          temperature: 0.6,
+          max_tokens: 120
+        })
+      })
+      if (!res.ok) throw new Error(`Groq ${res.status}`)
+      const data = await res.json()
+      const msg = data.choices?.[0]?.message?.content?.trim()
+      textEl.classList.remove('advisory-loading')
+      textEl.textContent = msg || localFallbackAdvisory()
+    } catch (e) {
+      console.warn('[StadiumPulse] Groq advisory failed, using local fallback:', e)
+      textEl.classList.remove('advisory-loading')
+      textEl.textContent = localFallbackAdvisory()
+    }
+    timeEl.textContent = `Last briefing: ${fmtTime()}`
+  }
+
+  // ── BOOT ──
+  window.addEventListener('load', () => {
+    renderStadium()
+    renderDensityPanel()
+    renderActions()
+    renderAlert()
+    updateHeaderMeta()
+    pushLog('🟢 System online — live stand density monitoring started.')
+
+    lastGroqCall = Date.now()
+    lastGroqSnapshot = STANDS.map(s => `${s.gate}:${Math.round(density[s.id]/5)*5}:${gateState[s.gate]}`).join('|')
+    fetchAdvisory()
+
+    document.getElementById('refreshAdvisoryBtn').addEventListener('click', manualRefreshAdvisory)
+
+    setInterval(tick, 3500)              // visual simulation only — free, no API cost
+    setInterval(updateHeaderMeta, 1000)
+    setInterval(updateAdvisoryCountdown, 1000)
+  })
+</script>
+</body>
+</html>
