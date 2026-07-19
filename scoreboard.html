@@ -327,8 +327,16 @@
   const GROQ_ENABLED   = true              // flip to false to disable live AI checks without touching the proxy
   const GROQ_MODEL    = 'llama-3.3-70b-versatile'
   const AUTO_REFRESH_MS = 60000   // how often to auto-check while a match is live/upcoming
-  let globalAutoTimer = null      // declared early — must exist before renderGlobalFeatured() runs
-  let teamAutoTimer = null
+  // declared early — must exist before renderGlobalFeatured() runs, since it
+  // synchronously calls restartGlobalAutoRefresh() during initial render.
+  // getMatch is a closure so it's fine that globalFeaturedMatch /
+  // currentTeamFeaturedMatch are declared+assigned further down — those are
+  // only read later, when the interval actually fires.
+  const liveCheckTargets = {
+    global: { btnId: 'globalLiveCheckBtn', resultId: 'globalLiveResult', getMatch: () => globalFeaturedMatch },
+    team:   { btnId: 'teamLiveCheckBtn',   resultId: 'teamLiveResult',   getMatch: () => currentTeamFeaturedMatch }
+  }
+  const liveCheckTimers = { global: null, team: null }
 
   async function groqLiveScoreCheck(match) {
     if (!GROQ_ENABLED) {
@@ -787,54 +795,39 @@
   }
 
   // ── AUTO-REFRESH (Groq live-score polling) ────────────────────────
-  async function runGlobalLiveCheck(isAuto) {
-    if (!globalFeaturedMatch) return
-    const btn = document.getElementById('globalLiveCheckBtn')
-    const resultEl = document.getElementById('globalLiveResult')
+  // The "global featured match" and "selected team's match" cards were
+  // each driving their own copy of this check + auto-refresh logic.
+  // They only ever differed by which match/button/result-element to use,
+  // so that's now a small config object instead of two parallel functions.
+  async function runLiveCheck(target, isAuto) {
+    const { btnId, resultId, getMatch } = liveCheckTargets[target]
+    const match = getMatch()
+    if (!match) return
+    const btn = document.getElementById(btnId)
+    const resultEl = document.getElementById(resultId)
     if (!isAuto) { btn.disabled = true; btn.textContent = '🔄 Checking with Groq...' }
-    const result = await groqLiveScoreCheck(globalFeaturedMatch)
-    renderLiveCheckResult(resultEl, globalFeaturedMatch, result, !!GROQ_ENABLED)
+    const result = await groqLiveScoreCheck(match)
+    renderLiveCheckResult(resultEl, match, result, !!GROQ_ENABLED)
     btn.disabled = false
     btn.textContent = GROQ_ENABLED
       ? `🌐 Auto-updating via Groq AI (every ${AUTO_REFRESH_MS/1000}s) — refresh now`
       : '🌐 Check live score with Groq AI'
   }
 
-  async function runTeamLiveCheck(isAuto) {
-    if (!currentTeamFeaturedMatch) return
-    const btn = document.getElementById('teamLiveCheckBtn')
-    const resultEl = document.getElementById('teamLiveResult')
-    if (!isAuto) { btn.disabled = true; btn.textContent = '🔄 Checking with Groq...' }
-    const result = await groqLiveScoreCheck(currentTeamFeaturedMatch)
-    renderLiveCheckResult(resultEl, currentTeamFeaturedMatch, result, !!GROQ_ENABLED)
-    btn.disabled = false
-    btn.textContent = GROQ_ENABLED
-      ? `🌐 Auto-updating via Groq AI (every ${AUTO_REFRESH_MS/1000}s) — refresh now`
-      : '🌐 Check live score with Groq AI'
-  }
+  window.handleGlobalLiveCheck = () => { restartAutoRefresh('global') }
+  window.handleTeamLiveCheck = () => { restartAutoRefresh('team') }
 
-  window.handleGlobalLiveCheck = () => { restartGlobalAutoRefresh() }
-  window.handleTeamLiveCheck = () => { restartTeamAutoRefresh() }
-
-  function restartGlobalAutoRefresh() {
-    if (globalAutoTimer) clearInterval(globalAutoTimer)
-    runGlobalLiveCheck(false)
-    if (GROQ_ENABLED && globalFeaturedMatch) {
-      globalAutoTimer = setInterval(() => {
-        if (document.visibilityState === 'visible') runGlobalLiveCheck(true)
+  function restartAutoRefresh(target) {
+    if (liveCheckTimers[target]) clearInterval(liveCheckTimers[target])
+    runLiveCheck(target, false)
+    if (GROQ_ENABLED && liveCheckTargets[target].getMatch()) {
+      liveCheckTimers[target] = setInterval(() => {
+        if (document.visibilityState === 'visible') runLiveCheck(target, true)
       }, AUTO_REFRESH_MS)
     }
   }
-
-  function restartTeamAutoRefresh() {
-    if (teamAutoTimer) clearInterval(teamAutoTimer)
-    runTeamLiveCheck(false)
-    if (GROQ_ENABLED && currentTeamFeaturedMatch) {
-      teamAutoTimer = setInterval(() => {
-        if (document.visibilityState === 'visible') runTeamLiveCheck(true)
-      }, AUTO_REFRESH_MS)
-    }
-  }
+  function restartGlobalAutoRefresh() { restartAutoRefresh('global') }
+  function restartTeamAutoRefresh() { restartAutoRefresh('team') }
 
   // ── RENDER: fixture cards + featured scorecard + squad ───────────
   function renderAll(data) {
@@ -895,7 +888,7 @@
     if (teamLiveBtn) teamLiveBtn.style.display = (match && match.status === 'upcoming') ? '' : 'none'
     if (teamLiveResult) teamLiveResult.innerHTML = ''
 
-    if (teamAutoTimer) { clearInterval(teamAutoTimer); teamAutoTimer = null }
+    if (liveCheckTimers.team) { clearInterval(liveCheckTimers.team); liveCheckTimers.team = null }
     if (match && match.status === 'upcoming' && GROQ_ENABLED) restartTeamAutoRefresh()
 
     if (!match) {
