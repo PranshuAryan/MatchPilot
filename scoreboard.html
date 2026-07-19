@@ -234,7 +234,7 @@
     <span class="nav-name">Match<span>Pilot</span></span>
   </a>
   <div class="nav-links">
-    <a href="index.html" class="nav-link">💬 Ask</a>
+    <a href="challenge_3.html" class="nav-link">💬 Ask</a>
     <a href="stadium.html" class="nav-link">📡 Stadium Pulse</a>
     <a href="route.html" class="nav-link">🗺️ Match Route</a>
     <a href="scoreboard.html" class="nav-link active">🏆 Scoreboard</a>
@@ -323,15 +323,16 @@
   //   3) Auto-refresh below polls the Groq API on a timer, which burns
   //      API calls/credits the whole time the page is open. Keep the
   //      interval sane (60s+) and stop it when the tab isn't visible.
-  const GROQ_API_KEY = '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'   // 🔑 paste your key here — get one at console.groq.com
+  const GROQ_PROXY_URL = '/api/groq/chat'  // server-side proxy holds the real key — never expose it in client JS
+  const GROQ_ENABLED   = true              // flip to false to disable live AI checks without touching the proxy
   const GROQ_MODEL    = 'llama-3.3-70b-versatile'
   const AUTO_REFRESH_MS = 60000   // how often to auto-check while a match is live/upcoming
   let globalAutoTimer = null      // declared early — must exist before renderGlobalFeatured() runs
   let teamAutoTimer = null
 
   async function groqLiveScoreCheck(match) {
-    if (!GROQ_API_KEY) {
-      return { ok:false, error:'No Groq API key configured. Add one in the script (GROQ_API_KEY) to enable live checks.' }
+    if (!GROQ_ENABLED) {
+      return { ok:false, error:'Live AI checks are disabled (GROQ_ENABLED = false).' }
     }
     const teamAName = TEAMS[match.teamA].name
     const teamBName = TEAMS[match.teamB].name
@@ -342,11 +343,10 @@
       `If you cannot find current information, set status to "not_started" and explain briefly in minuteOrNote.`
 
     try {
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      const res = await fetch(GROQ_PROXY_URL, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${GROQ_API_KEY}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           model: GROQ_MODEL,
@@ -681,7 +681,7 @@
     `
   }
   renderGlobalFeatured()
-  if (GROQ_API_KEY) restartGlobalAutoRefresh()
+  if (GROQ_ENABLED) restartGlobalAutoRefresh()
 
   // ── RENDER TEAM GRID ─────────────────────────────────────────────
   function renderTeamGrid() {
@@ -793,9 +793,9 @@
     const resultEl = document.getElementById('globalLiveResult')
     if (!isAuto) { btn.disabled = true; btn.textContent = '🔄 Checking with Groq...' }
     const result = await groqLiveScoreCheck(globalFeaturedMatch)
-    renderLiveCheckResult(resultEl, globalFeaturedMatch, result, !!GROQ_API_KEY)
+    renderLiveCheckResult(resultEl, globalFeaturedMatch, result, !!GROQ_ENABLED)
     btn.disabled = false
-    btn.textContent = GROQ_API_KEY
+    btn.textContent = GROQ_ENABLED
       ? `🌐 Auto-updating via Groq AI (every ${AUTO_REFRESH_MS/1000}s) — refresh now`
       : '🌐 Check live score with Groq AI'
   }
@@ -806,9 +806,9 @@
     const resultEl = document.getElementById('teamLiveResult')
     if (!isAuto) { btn.disabled = true; btn.textContent = '🔄 Checking with Groq...' }
     const result = await groqLiveScoreCheck(currentTeamFeaturedMatch)
-    renderLiveCheckResult(resultEl, currentTeamFeaturedMatch, result, !!GROQ_API_KEY)
+    renderLiveCheckResult(resultEl, currentTeamFeaturedMatch, result, !!GROQ_ENABLED)
     btn.disabled = false
-    btn.textContent = GROQ_API_KEY
+    btn.textContent = GROQ_ENABLED
       ? `🌐 Auto-updating via Groq AI (every ${AUTO_REFRESH_MS/1000}s) — refresh now`
       : '🌐 Check live score with Groq AI'
   }
@@ -819,7 +819,7 @@
   function restartGlobalAutoRefresh() {
     if (globalAutoTimer) clearInterval(globalAutoTimer)
     runGlobalLiveCheck(false)
-    if (GROQ_API_KEY && globalFeaturedMatch) {
+    if (GROQ_ENABLED && globalFeaturedMatch) {
       globalAutoTimer = setInterval(() => {
         if (document.visibilityState === 'visible') runGlobalLiveCheck(true)
       }, AUTO_REFRESH_MS)
@@ -829,7 +829,7 @@
   function restartTeamAutoRefresh() {
     if (teamAutoTimer) clearInterval(teamAutoTimer)
     runTeamLiveCheck(false)
-    if (GROQ_API_KEY && currentTeamFeaturedMatch) {
+    if (GROQ_ENABLED && currentTeamFeaturedMatch) {
       teamAutoTimer = setInterval(() => {
         if (document.visibilityState === 'visible') runTeamLiveCheck(true)
       }, AUTO_REFRESH_MS)
@@ -896,7 +896,7 @@
     if (teamLiveResult) teamLiveResult.innerHTML = ''
 
     if (teamAutoTimer) { clearInterval(teamAutoTimer); teamAutoTimer = null }
-    if (match && match.status === 'upcoming' && GROQ_API_KEY) restartTeamAutoRefresh()
+    if (match && match.status === 'upcoming' && GROQ_ENABLED) restartTeamAutoRefresh()
 
     if (!match) {
       card.innerHTML = `<div class="no-fixture">No match data available for ${sanitize(data.team.name)}.</div>`
