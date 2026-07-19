@@ -444,7 +444,7 @@
 <script src="secure-code.js"></script>
 <script>
   // ── CONFIG (same key/model as the main MatchPilot Ask page) ──
-  const GROQ_API_KEY = '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'
+  const GROQ_PROXY_URL = '/api/groq/chat'  // server-side proxy holds the real key — never expose it in client JS
   const GROQ_MODEL   = 'llama-3.3-70b-versatile'
 
   const STANDS = [
@@ -680,11 +680,10 @@
     const snapshot = STANDS.map(s => `${s.name} (Gate ${s.gate}): ${Math.round(density[s.id])}% full, gate ${gateState[s.gate]}`).join('; ')
 
     try {
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      const res = await fetch(GROQ_PROXY_URL, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${GROQ_API_KEY}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           model: GROQ_MODEL,
