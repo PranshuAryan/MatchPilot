@@ -849,6 +849,7 @@ Calculate backwards from kickoff to determine departure time. Account for stadiu
     let debounceTimer = null
     let activeIndex    = -1
     let currentItems   = []
+    let currentEls     = [] // DOM nodes for currentItems, cached so keyboard nav doesn't re-query the DOM
     let currentRequest = 0
 
     function hideList() {
@@ -858,11 +859,13 @@ Calculate backwards from kickoff to determine departure time. Account for stadiu
       input.removeAttribute('aria-activedescendant')
       activeIndex = -1
       currentItems = []
+      currentEls = []
     }
 
     function renderItems(items) {
       listEl.querySelectorAll('.autocomplete-item').forEach(el => el.remove())
       currentItems = items
+      currentEls = []
       activeIndex = -1
 
       if (!items.length) {
@@ -889,6 +892,7 @@ Calculate backwards from kickoff to determine departure time. Account for stadiu
         })
         div.addEventListener('mouseenter', () => setActive(i))
         listEl.appendChild(div)
+        currentEls.push(div)
       })
 
       listEl.classList.add('visible')
@@ -896,12 +900,11 @@ Calculate backwards from kickoff to determine departure time. Account for stadiu
     }
 
     function setActive(index) {
-      const els = listEl.querySelectorAll('.autocomplete-item')
-      els.forEach(el => el.classList.remove('active-suggestion'))
-      if (index >= 0 && index < els.length) {
-        els[index].classList.add('active-suggestion')
-        els[index].scrollIntoView({ block: 'nearest' })
-        input.setAttribute('aria-activedescendant', els[index].id)
+      currentEls.forEach(el => el.classList.remove('active-suggestion'))
+      if (index >= 0 && index < currentEls.length) {
+        currentEls[index].classList.add('active-suggestion')
+        currentEls[index].scrollIntoView({ block: 'nearest' })
+        input.setAttribute('aria-activedescendant', currentEls[index].id)
       } else {
         input.removeAttribute('aria-activedescendant')
       }
