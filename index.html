@@ -738,7 +738,11 @@ If something is outside your knowledge, say so clearly and suggest where to find
   }
 
   // ── GROQ API ──────────────────────────────────────────────────────
-  async function callGroq() {
+  // Single shared call site for the chat-completions proxy. Every
+  // feature that needs a Groq completion (main chat, the translate
+  // panel, per-message translation) goes through this one function
+  // instead of each hand-rolling its own fetch/headers/parsing.
+  async function groqChat(chatMessages, { maxTokens = 400, temperature = 0.5 } = {}) {
     const res = await fetch(GROQ_PROXY_URL, {
       method: 'POST',
       headers: {
@@ -746,17 +750,24 @@ If something is outside your knowledge, say so clearly and suggest where to find
       },
       body: JSON.stringify({
         model: GROQ_MODEL,
-        messages: [
-          { role: 'system', content: buildSystemPrompt(currentLang) },
-          ...messages.slice(-10) // last 10 turns for context
-        ],
-        max_tokens: 350,
-        temperature: 0.6
+        messages: chatMessages,
+        max_tokens: maxTokens,
+        temperature
       })
     })
     if (!res.ok) throw new Error(`Groq ${res.status}`)
     const data = await res.json()
     return data.choices?.[0]?.message?.content || ''
+  }
+
+  async function callGroq() {
+    return groqChat(
+      [
+        { role: 'system', content: buildSystemPrompt(currentLang) },
+        ...messages.slice(-10) // last 10 turns for context
+      ],
+      { maxTokens: 350, temperature: 0.6 }
+    )
   }
 
   // ── TRANSLATE ─────────────────────────────────────────────────────
@@ -788,24 +799,13 @@ If something is outside your knowledge, say so clearly and suggest where to find
     try {
       const toName = document.getElementById('toLang').options[document.getElementById('toLang').selectedIndex].text
 
-      const res = await fetch(GROQ_PROXY_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: GROQ_MODEL,
-          messages: [{
-            role: 'user',
-            content: `Translate the following text to ${toName}. Return ONLY the translated text, nothing else, no explanation.\n\nText: ${sanitize(input)}`
-          }],
-          max_tokens: 400,
-          temperature: 0.2
-        })
-      })
-
-      const data = await res.json()
-      const translation = data.choices?.[0]?.message?.content || 'Translation failed'
+      const translation = await groqChat(
+        [{
+          role: 'user',
+          content: `Translate the following text to ${toName}. Return ONLY the translated text, nothing else, no explanation.\n\nText: ${sanitize(input)}`
+        }],
+        { maxTokens: 400, temperature: 0.2 }
+      ) || 'Translation failed'
       output.textContent = sanitize(translation)
 
       const speakBtn = document.getElementById('translateSpeakBtn')
@@ -829,23 +829,13 @@ If something is outside your knowledge, say so clearly and suggest where to find
     btn.textContent = '⏳ Translating...'
     btn.disabled = true
     try {
-      const res = await fetch(GROQ_PROXY_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: GROQ_MODEL,
-          messages: [{
-            role: 'user',
-            content: `Translate to ${targetLangName}. Return ONLY the translation, no explanation.\n\n${sanitize(text)}`
-          }],
-          max_tokens: 300,
-          temperature: 0.1
-        })
-      })
-      const data = await res.json()
-      const t = data.choices?.[0]?.message?.content || 'Could not translate'
+      const t = await groqChat(
+        [{
+          role: 'user',
+          content: `Translate to ${targetLangName}. Return ONLY the translation, no explanation.\n\n${sanitize(text)}`
+        }],
+        { maxTokens: 300, temperature: 0.1 }
+      ) || 'Could not translate'
       outputEl.textContent = sanitize(t)
       outputEl.classList.add('visible')
       btn.textContent = '🌐 Hide translation'
