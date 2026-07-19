@@ -579,7 +579,7 @@
 <script src="secure-code.js"></script>
 <script>
   // ── CONFIG ───────────────────────────────────────────────────────
-  const GROQ_API_KEY = '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'  // 🔑 paste your key here
+  const GROQ_PROXY_URL = '/api/groq/chat'  // server-side proxy holds the real key — never expose it in client JS
   const GROQ_MODEL   = 'llama-3.3-70b-versatile'
 
   // Maps our short language codes to full BCP-47 locale tags for speech synthesis
@@ -739,11 +739,10 @@ If something is outside your knowledge, say so clearly and suggest where to find
 
   // ── GROQ API ──────────────────────────────────────────────────────
   async function callGroq() {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const res = await fetch(GROQ_PROXY_URL, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GROQ_API_KEY}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         model: GROQ_MODEL,
@@ -789,11 +788,10 @@ If something is outside your knowledge, say so clearly and suggest where to find
     try {
       const toName = document.getElementById('toLang').options[document.getElementById('toLang').selectedIndex].text
 
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      const res = await fetch(GROQ_PROXY_URL, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${GROQ_API_KEY}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           model: GROQ_MODEL,
@@ -831,11 +829,10 @@ If something is outside your knowledge, say so clearly and suggest where to find
     btn.textContent = '⏳ Translating...'
     btn.disabled = true
     try {
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      const res = await fetch(GROQ_PROXY_URL, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${GROQ_API_KEY}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           model: GROQ_MODEL,
@@ -1048,9 +1045,8 @@ If something is outside your knowledge, say so clearly and suggest where to find
       // No `language` param → Whisper auto-detects the spoken language
       // instead of being forced to whatever UI language is selected.
 
-      const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      const res = await fetch('/api/groq/audio', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` },
         body: formData
       })
       if (!res.ok) throw new Error(`Groq ${res.status}`)
